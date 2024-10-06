@@ -1,7 +1,7 @@
 type Op = FuncOp | NumericOp;
 
 type NumericOp = {
-    type: "take";
+    type: "take" | "skip";
     count: number;
 };
 
@@ -54,13 +54,11 @@ export class ArrayStream<Input> {
     }
 
     public skip(n: number): ArrayStream<Input> {
-        // Can we do this inside of the iteration loop (i.e. collect?)
-        const intermediate = this.collect();
-        const iter = intermediate[Symbol.iterator]();
-        for (let i = 0; i < n; i++) {
-            console.log(iter.next().value);
-        }
-        return new ArrayStream(iter, this.ops);
+        this.ops.push({
+            type: "skip",
+            count: n,
+        });
+        return this;
     }
 
     // Methods that collect the iterator
@@ -116,6 +114,16 @@ export class ArrayStream<Input> {
                 const op = this.ops[i];
 
                 switch (op.type) {
+                    case "skip":
+                        // Though this doesn't make much sense for the inner loop,
+                        // the other solution I had would have it run through all iterations
+                        // then skip items. This seemed the most efficient.
+                        // TODO: Consider how to put this in a better place while maintaining efficiency
+                        for (let i = 0; i < op.count - 1; i++) {
+                            this.input.next();
+                        }
+                        this.ops.splice(i, 1);
+                        continue outer_loop;
                     case "take":
                         if (count >= op.count) {
                             return new ArrayStream(

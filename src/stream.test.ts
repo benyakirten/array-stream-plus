@@ -138,8 +138,9 @@ describe("ArrayStream", () => {
             .skip(3)
             // 18, 22
             .take(2)
+            .map((x) => ({ x }))
             .collect();
 
-        expect(got).toEqual([14, 18]);
+        expect(got).toEqual([{ x: 14 }, { x: 18 }]);
     });
 });
