@@ -262,6 +262,27 @@ export class ArrayStream<Input> {
         return true;
     }
 
+    public find(fn: (item: Input) => boolean): Input | null {
+        for (const item of this.collect()) {
+            if (fn(item)) {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
+    public findIndex(fn: (item: Input) => boolean): number {
+        const items = this.collect();
+        for (let i = 0; i < items.length; i++) {
+            if (fn(items[i])) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     public partition(fn: (input: Input) => boolean): [Input[], Input[]] {
         const input = this.collect();
         const left: Input[] = [];

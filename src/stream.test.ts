@@ -373,4 +373,52 @@ describe("ArrayStream", () => {
         expect(got).toBe(false);
         expect(i).toBe(5);
     });
+
+    test("find should return the first item that matches the predicate", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).find((x) => {
+            i++;
+            return x === 5;
+        });
+
+        expect(got).toBe(5);
+        expect(i).toBe(5);
+    });
+
+    test("find should return null if no item matches the predicate", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).find((x) => {
+            i++;
+            return x === -1;
+        });
+
+        expect(got).toBeNull();
+        expect(i).toBe(9);
+    });
+
+    test("findIndex should return the index of the first item that matches the predicate", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).findIndex(
+            (x) => {
+                i++;
+                return x === 5;
+            }
+        );
+
+        expect(got).toBe(4);
+        expect(i).toBe(5);
+    });
+
+    test("findIndex should return -1 if no item matches the predicate", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).findIndex(
+            (x) => {
+                i++;
+                return x === -1;
+            }
+        );
+
+        expect(got).toBe(-1);
+        expect(i).toBe(9);
+    });
 });
