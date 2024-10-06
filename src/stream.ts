@@ -89,6 +89,26 @@ export class ArrayStream<Input> {
         return new ArrayStream(chainGenerator(), []);
     }
 
+    public zip<Stream>(
+        stream: Streamable<Stream>
+    ): ArrayStream<[Input, Stream]> {
+        const input = this.collect();
+
+        function* zipGenerator() {
+            const streamIter = ArrayStream.makeIterator(stream);
+            for (const item of input) {
+                const streamItem = streamIter.next();
+                if (streamItem.done) {
+                    break;
+                }
+
+                yield [item, streamItem.value] as [Input, Stream];
+            }
+        }
+
+        return new ArrayStream(zipGenerator(), []);
+    }
+
     // Methods that collect the iterator
     public count(): number {
         return this.collect().length;

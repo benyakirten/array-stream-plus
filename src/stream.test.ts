@@ -158,4 +158,44 @@ describe("ArrayStream", () => {
 
         expect(got).toEqual([2, 4, 5, 6]);
     });
+
+    test("zip should combine two streams into a single stream of tuples", () => {
+        const got = new ArrayStream([1, 2, 3]).zip([4, 5, 6]).collect();
+
+        expect(got).toEqual([
+            [1, 4],
+            [2, 5],
+            [3, 6],
+        ]);
+    });
+
+    test("zip should work with other operations", () => {
+        const got = new ArrayStream([1, 2, 3])
+            .map((x) => ({ x }))
+            .zip([4, 5, 6])
+            .collect();
+
+        expect(got).toEqual([
+            [{ x: 1 }, 4],
+            [{ x: 2 }, 5],
+            [{ x: 3 }, 6],
+        ]);
+    });
+
+    test("zip should stop when the initial stream ends", () => {
+        const got = new ArrayStream([1, 2, 3])
+            .filter((x) => x % 2 === 0)
+            .zip([4, 5, 6])
+            .collect();
+
+        expect(got).toEqual([[2, 4]]);
+    });
+
+    test("zip should stop when the new stream ends", () => {
+        const got = new ArrayStream([1, 2, 3]).zip([4, 5]).collect();
+        expect(got).toEqual([
+            [1, 4],
+            [2, 5],
+        ]);
+    });
 });
