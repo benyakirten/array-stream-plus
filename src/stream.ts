@@ -238,6 +238,20 @@ export class ArrayStream<Input> {
         return result;
     }
 
+    public reduceRight<End>(
+        op: (next: Input, acc: End) => End,
+        initialValue: End
+    ): End {
+        const intermediate = this.collect();
+
+        let result = initialValue;
+        for (let i = intermediate.length - 1; i >= 0; i--) {
+            const item = intermediate[i];
+            result = op(item as unknown as Input, result);
+        }
+        return result;
+    }
+
     public flat<End, D extends number = 1>(d?: D): FlatArray<End, D>[] {
         return this.collect().flat(d) as FlatArray<End, D>[];
     }
@@ -275,6 +289,28 @@ export class ArrayStream<Input> {
     public findIndex(fn: (item: Input) => boolean): number {
         const items = this.collect();
         for (let i = 0; i < items.length; i++) {
+            if (fn(items[i])) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public findLast(fn: (item: Input) => boolean): Input | null {
+        const items = this.collect();
+        for (let i = items.length - 1; i >= 0; i--) {
+            if (fn(items[i])) {
+                return items[i];
+            }
+        }
+
+        return null;
+    }
+
+    public findLastIndex(fn: (item: Input) => boolean): number {
+        const items = this.collect();
+        for (let i = items.length - 1; i >= 0; i--) {
             if (fn(items[i])) {
                 return i;
             }
@@ -375,5 +411,3 @@ export class ArrayStream<Input> {
         return intermediate as Input[];
     }
 }
-
-// TODO: Add an asynchronous version

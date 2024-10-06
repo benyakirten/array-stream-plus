@@ -422,6 +422,58 @@ describe("ArrayStream", () => {
         expect(i).toBe(9);
     });
 
+    test("findLast should return the last item that matches the predicate starting from the end", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).findLast(
+            (x) => {
+                i++;
+                return x === 5;
+            }
+        );
+
+        expect(got).toBe(5);
+        expect(i).toBe(5);
+    });
+
+    test("findLast should return null if no item matches the predicate", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).findLast(
+            (x) => {
+                i++;
+                return x === -1;
+            }
+        );
+
+        expect(got).toBeNull();
+        expect(i).toBe(9);
+    });
+
+    test("findLastIndex should return the index of the last item that matches the predicate strting from the end", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).findLastIndex(
+            (x) => {
+                i++;
+                return x === 5;
+            }
+        );
+
+        expect(got).toBe(4);
+        expect(i).toBe(5);
+    });
+
+    test("findLastIndex should return -1 if no item matches the predicate", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).findLastIndex(
+            (x) => {
+                i++;
+                return x === -1;
+            }
+        );
+
+        expect(got).toBe(-1);
+        expect(i).toBe(9);
+    });
+
     test("includes should return with the same shallow value as the predicate", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).includes(5);
         expect(got).toBe(true);
@@ -437,5 +489,39 @@ describe("ArrayStream", () => {
             a: 2,
         });
         expect(got).toBe(false);
+    });
+
+    test("reduce should reduce the array from left to right", () => {
+        const got = new ArrayStream([
+            { val: 1 },
+            { val: 2 },
+            { val: 3 },
+            { val: 4 },
+        ]).reduce<{ val: number }[]>((next, acc) => {
+            if (acc.length === 2) {
+                return acc;
+            }
+            acc.push(next);
+            return acc;
+        }, []);
+
+        expect(got).toEqual([{ val: 1 }, { val: 2 }]);
+    });
+
+    test("reduceRight should reduce the array from right to left", () => {
+        const got = new ArrayStream([
+            { val: 1 },
+            { val: 2 },
+            { val: 3 },
+            { val: 4 },
+        ]).reduceRight<{ val: number }[]>((next, acc) => {
+            if (acc.length === 2) {
+                return acc;
+            }
+            acc.push(next);
+            return acc;
+        }, []);
+
+        expect(got).toEqual([{ val: 4 }, { val: 3 }]);
     });
 });
