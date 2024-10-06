@@ -89,6 +89,41 @@ export class ArrayStream<Input> {
         return new ArrayStream(chainGenerator(), []);
     }
 
+    public intersperse<Item>(
+        fnOrItem: Item | (() => Item)
+    ): ArrayStream<Input | Item> {
+        const input = this.collect();
+        const _input = ArrayStream.makeIterator(input);
+
+        function* intersperseGenerator() {
+            let count = 0;
+            while (true) {
+                const item = _input.next();
+                yield item.value;
+
+                if (
+                    item.done ||
+                    // Iterators created by arrays will have .done = true after they have gone through every item
+                    // and not when they're on the last item - but intersperse puts them between items, not after each
+                    // Therefore we have to add a special check for arrays since they will iterate specially
+                    (Array.isArray(input) && count == input.length - 1)
+                ) {
+                    break;
+                }
+
+                const intersperseItem =
+                    typeof fnOrItem === "function"
+                        ? (fnOrItem as () => Item)()
+                        : fnOrItem;
+                yield intersperseItem;
+
+                count++;
+            }
+        }
+
+        return new ArrayStream(intersperseGenerator(), []);
+    }
+
     public zip<Stream>(
         stream: Streamable<Stream>
     ): ArrayStream<[Input, Stream]> {

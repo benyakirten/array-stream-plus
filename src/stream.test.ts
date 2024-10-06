@@ -198,4 +198,18 @@ describe("ArrayStream", () => {
             [2, 5],
         ]);
     });
+
+    test("intersperse should intersperse a value between each item if it is not a function", () => {
+        const got = new ArrayStream([1, 2, 3]).intersperse(0).collect();
+        expect(got).toEqual([1, 0, 2, 0, 3]);
+    });
+
+    test("intersperse should work correctly with other operations", () => {
+        const got = new ArrayStream([1, 2, 3, 4])
+            .filter((x) => x % 2 === 0)
+            .intersperse(0)
+            .collect();
+
+        expect(got).toEqual([2, 0, 4]);
+    });
 });
