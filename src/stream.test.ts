@@ -29,6 +29,19 @@ describe("ArrayStream", () => {
         expect(got).toEqual([2, 4, 6]);
     });
 
+    test("take should take a fixed number of items from a generator that will generate infinite items", () => {
+        function* generate() {
+            let i = 0;
+            while (true) {
+                yield i++;
+            }
+        }
+
+        const got = new ArrayStream(generate()).take(5).collect();
+
+        expect(got).toEqual([0, 1, 2, 3, 4]);
+    });
+
     test("take should continue to perform operations as expected after the limit has been reached", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
             .filter((x) => x % 2 === 0)
