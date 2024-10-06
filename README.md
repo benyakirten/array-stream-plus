@@ -4,7 +4,7 @@
 
 ## Introduction
 
-Want a quick, easy and efficient
+Want a quick, easy and efficient way to do functional programming-like things with arrays? Burned by discovering that Array.map, Array.filter and Array.reduce are grossly inefficient? Missing being able to call .take from an infinite generator?
 
 ```ts
 function* gen(start: number) {
