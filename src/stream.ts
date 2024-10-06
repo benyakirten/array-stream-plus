@@ -1,14 +1,4 @@
-type Op = FuncOp | NumericOp;
-
-type NumericOp = {
-    type: "take" | "skip";
-    count: number;
-};
-
-type FuncOp = {
-    type: "map" | "filter";
-    op: (input: unknown) => unknown;
-};
+import type { Streamable, Op, FuncOp } from "./types";
 
 /**
  * A class for performing a series of operations on a synchronous and iterable source of data.
@@ -19,14 +9,18 @@ type FuncOp = {
 export class ArrayStream<Input> {
     private input: IterableIterator<Input>;
     constructor(
-        input: Input[] | IterableIterator<Input>,
+        input: Streamable<Input>,
         private ops: Op[] = []
     ) {
+        this.input = ArrayStream.makeIterator(input);
+    }
+
+    private static makeIterator<Stream>(input: Streamable<Stream>) {
         if (Array.isArray(input)) {
-            this.input = input[Symbol.iterator]();
-        } else {
-            this.input = input;
+            return input[Symbol.iterator]();
         }
+
+        return input;
     }
 
     public map<End>(fn: (input: Input) => End): ArrayStream<End> {
@@ -61,20 +55,7 @@ export class ArrayStream<Input> {
         return this;
     }
 
-    // Methods that collect the iterator
-    public count(): number {
-        return this.collect().length;
-    }
-
-    public nth(n: number): Input | null {
-        const items = this.collect();
-        if (n < items.length) {
-            return items[n];
-        }
-
-        return null;
-    }
-
+    // Methods that return a new iterator
     public stepBy(n: number): ArrayStream<Input> {
         const input = this.collect();
         function* stepByGenerator() {
@@ -88,6 +69,38 @@ export class ArrayStream<Input> {
         }
 
         return new ArrayStream(stepByGenerator(), this.ops);
+    }
+
+    public chain<Stream>(
+        stream: Streamable<Stream>
+    ): ArrayStream<Input | Stream> {
+        const input = this.collect();
+
+        function* chainGenerator() {
+            for (const item of input) {
+                yield item;
+            }
+
+            for (const item of stream) {
+                yield item;
+            }
+        }
+
+        return new ArrayStream(chainGenerator(), []);
+    }
+
+    // Methods that collect the iterator
+    public count(): number {
+        return this.collect().length;
+    }
+
+    public nth(n: number): Input | null {
+        const items = this.collect();
+        if (n < items.length) {
+            return items[n];
+        }
+
+        return null;
     }
 
     public reduce<End>(

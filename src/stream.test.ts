@@ -143,4 +143,19 @@ describe("ArrayStream", () => {
 
         expect(got).toEqual([{ x: 14 }, { x: 18 }]);
     });
+
+    test("chain should append one stream to the end of the other", () => {
+        const got = new ArrayStream([1, 2, 3]).chain([4, 5, 6]).collect();
+
+        expect(got).toEqual([1, 2, 3, 4, 5, 6]);
+    });
+
+    test("chain should work with other operations", () => {
+        const got = new ArrayStream([1, 2, 3])
+            .filter((x) => x % 2 === 0)
+            .chain([4, 5, 6])
+            .collect();
+
+        expect(got).toEqual([2, 4, 5, 6]);
+    });
 });
