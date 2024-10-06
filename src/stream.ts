@@ -293,14 +293,14 @@ export class ArrayStream<Input> {
      * Consume the iterator and collect all items into the chosen data structure starting from the first item.
      */
     public reduce<End>(
-        op: (next: Input, acc: End) => End,
+        op: (acc: End, next: Input) => End,
         initialValue: End
     ): End {
         const intermediate = this.collect();
 
         let result = initialValue;
         for (const item of intermediate) {
-            result = op(item as unknown as Input, result);
+            result = op(result, item as unknown as Input);
         }
         return result;
     }
@@ -309,7 +309,7 @@ export class ArrayStream<Input> {
      * Consume the iterator and collect all items into the chosen data structure starting from the last item.
      */
     public reduceRight<End>(
-        op: (next: Input, acc: End) => End,
+        op: (acc: End, next: Input) => End,
         initialValue: End
     ): End {
         const intermediate = this.collect();
@@ -317,7 +317,7 @@ export class ArrayStream<Input> {
         let result = initialValue;
         for (let i = intermediate.length - 1; i >= 0; i--) {
             const item = intermediate[i];
-            result = op(item as unknown as Input, result);
+            result = op(result, item as unknown as Input);
         }
         return result;
     }

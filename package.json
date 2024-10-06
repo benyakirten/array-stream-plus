@@ -1,5 +1,21 @@
 {
     "name": "array-streams",
+    "version": "0.1.0",
+    "author": {
+        "name": "Ben Horowitz",
+        "email": "benyakir.horowitz@gmail.com"
+    },
+    "keywords": [
+        "array",
+        "streams",
+        "functional"
+    ],
+    "description": "A library for working with arrays in a functional way motivated by Rust iterators.",
+    "license": "MIT",
+    "homepage": "https://github.com/benyakirten/array-stream",
+    "bugs": {
+        "url": "https://github.com/benyakirten/array-stream/issues"
+    },
     "module": "index.ts",
     "type": "module",
     "devDependencies": {

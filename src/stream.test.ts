@@ -287,7 +287,7 @@ describe("ArrayStream", () => {
     test("reduce should reduce the remaining items after all operations have been performed", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14])
             .map((x) => ({ value: x * 2 }))
-            .reduce((next, acc) => ({ total: next.value + acc.total }), {
+            .reduce((acc, next) => ({ total: next.value + acc.total }), {
                 total: 0,
             });
 
@@ -299,7 +299,7 @@ describe("ArrayStream", () => {
             .filter((x) => x % 2 === 0)
             .take(6)
             .map((x) => ({ value: x * 2 }))
-            .reduce((next, acc) => ({ total: next.value + acc.total }), {
+            .reduce((acc, next) => ({ total: next.value + acc.total }), {
                 total: 0,
             });
 
@@ -510,7 +510,7 @@ describe("ArrayStream", () => {
             { val: 2 },
             { val: 3 },
             { val: 4 },
-        ]).reduce<{ val: number }[]>((next, acc) => {
+        ]).reduce<{ val: number }[]>((acc, next) => {
             if (acc.length === 2) {
                 return acc;
             }
@@ -527,7 +527,7 @@ describe("ArrayStream", () => {
             { val: 2 },
             { val: 3 },
             { val: 4 },
-        ]).reduceRight<{ val: number }[]>((next, acc) => {
+        ]).reduceRight<{ val: number }[]>((acc, next) => {
             if (acc.length === 2) {
                 return acc;
             }
