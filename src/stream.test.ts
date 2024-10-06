@@ -329,4 +329,48 @@ describe("ArrayStream", () => {
             [1, 3, 5, 7, 9],
         ]);
     });
+
+    test("any should return true and exit early if the predicate is true for any item", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).any((x) => {
+            i++;
+            return x === 5;
+        });
+
+        expect(got).toBe(true);
+        expect(i).toBe(5);
+    });
+
+    test("any should return false if the predicate is false for all items", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).any((x) => {
+            i++;
+            return x === -1;
+        });
+
+        expect(got).toBe(false);
+        expect(i).toBe(9);
+    });
+
+    test("all should return true if the predicate is true for all items", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).all((x) => {
+            i++;
+            return x > 0;
+        });
+
+        expect(got).toBe(true);
+        expect(i).toBe(9);
+    });
+
+    test("all should return false and exit early if the predicate is false for any item", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).all((x) => {
+            i++;
+            return x !== 5;
+        });
+
+        expect(got).toBe(false);
+        expect(i).toBe(5);
+    });
 });
