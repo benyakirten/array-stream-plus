@@ -47,6 +47,14 @@ export class ArrayStream<Input> {
         return this;
     }
 
+    public inspect(fn: (input: Input) => void): ArrayStream<Input> {
+        this.ops.push({
+            type: "foreach",
+            op: fn as FuncOp["op"],
+        });
+        return this;
+    }
+
     public filterMap<End>(
         fn: (input: Input) => End | null | false | undefined
     ): ArrayStream<End> {

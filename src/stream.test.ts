@@ -51,6 +51,18 @@ describe("ArrayStream", () => {
         expect(got).toEqual([1, 2, 3]);
     });
 
+    test("inspect should call the function for each item in the stream", () => {
+        let i = 0;
+        const got = new ArrayStream([1, 2, 3])
+            .inspect(() => {
+                i++;
+            })
+            .collect();
+
+        expect(i).toEqual(3);
+        expect(got).toEqual([1, 2, 3]);
+    });
+
     test("filterMap should filter out items that return null, false, or undefined and transform the others", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6])
             .filterMap((x) => (x % 2 === 0 ? x * 2 : null))
