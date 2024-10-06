@@ -173,6 +173,21 @@ export class ArrayStream<Input> {
         return new ArrayStream(enumerateGenerator(), []);
     }
 
+    // TODO: Find a more efficient way to implement this than to collect the iterator
+    public flatMap<End>(fn: (input: Input) => End[]): ArrayStream<End> {
+        const input = this.collect();
+        function* flatMapGenerator() {
+            for (const item of input) {
+                const result = fn(item);
+                for (const r of result) {
+                    yield r;
+                }
+            }
+        }
+
+        return new ArrayStream(flatMapGenerator(), []);
+    }
+
     // Methods that collect the iterator
     public count(): number {
         return this.collect().length;
