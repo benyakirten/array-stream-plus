@@ -215,6 +215,10 @@ export class ArrayStream<Input> {
         return result;
     }
 
+    public flat<End, D extends number = 1>(d?: D): FlatArray<End, D>[] {
+        return this.collect().flat(d) as FlatArray<End, D>[];
+    }
+
     public collect(): Input[] {
         const intermediate: unknown[] = [];
         let count: number = 0;

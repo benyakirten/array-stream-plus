@@ -286,4 +286,9 @@ describe("ArrayStream", () => {
 
         expect(got).toBeNull();
     });
+
+    test("flat should flatten the array to the specified depth", () => {
+        const got = new ArrayStream([1, [2, [3, [4, 5]]]]).flat(2);
+        expect(got).toEqual([1, 2, 3, [4, 5]]);
+    });
 });
