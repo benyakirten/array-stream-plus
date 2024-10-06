@@ -72,4 +72,74 @@ describe("ArrayStream", () => {
 
         expect(got).toEqual({ total: 84 });
     });
+
+    test("nth should return the nth item after all operations have been performed if it exists", () => {
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14])
+            .filter((x) => x % 2 === 0)
+            .take(6)
+            .map((x) => ({ value: x * 2 }))
+            .nth(2);
+
+        expect(got).not.toBeNull();
+        expect(got).toEqual({ value: 12 });
+    });
+
+    test("nth should return null if the nth item does not exist", () => {
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14])
+            .filter((x) => x % 2 === 0)
+            .take(6)
+            .map((x) => ({ value: x * 2 }))
+            .nth(100);
+
+        expect(got).toBeNull();
+    });
+
+    test("stepBy should return every nth item", () => {
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            .stepBy(3)
+            .collect();
+
+        expect(got).toEqual([1, 4, 7, 10]);
+    });
+
+    test("stepBy should respect other operations", () => {
+        const got = new ArrayStream([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+        ])
+            // 2, 4, 6, 8, 10, 12, 14, 16
+            .filter((x) => x % 2 === 0)
+            // 2, 6, 10, 14
+            .stepBy(2)
+            // 2, 6
+            .take(2)
+            .collect();
+
+        expect(got).toEqual([2, 6]);
+    });
+
+    test("skip should skip the next n items of the array", () => {
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            .skip(3)
+            .collect();
+
+        expect(got).toEqual([4, 5, 6, 7, 8, 9, 10]);
+    });
+
+    test("skip should be able to work with other operations", () => {
+        const got = new ArrayStream([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+            20, 21, 22,
+        ])
+            // 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22
+            .filter((x) => x % 2 === 0)
+            // 2, 6, 10, 14, 18, 22
+            .stepBy(2)
+            // 14, 18, 22
+            .skip(3)
+            // 18, 22
+            .take(2)
+            .collect();
+
+        expect(got).toEqual([14, 18]);
+    });
 });

@@ -1,7 +1,7 @@
 type Op = FuncOp | NumericOp;
 
 type NumericOp = {
-    type: "take" | "skip";
+    type: "take";
     count: number;
 };
 
@@ -54,15 +54,42 @@ export class ArrayStream<Input> {
     }
 
     public skip(n: number): ArrayStream<Input> {
-        this.ops.push({
-            type: "skip",
-            count: n,
-        });
-        return this;
+        // Can we do this inside of the iteration loop (i.e. collect?)
+        const intermediate = this.collect();
+        const iter = intermediate[Symbol.iterator]();
+        for (let i = 0; i < n; i++) {
+            console.log(iter.next().value);
+        }
+        return new ArrayStream(iter, this.ops);
     }
 
+    // Methods that collect the iterator
     public count(): number {
         return this.collect().length;
+    }
+
+    public nth(n: number): Input | null {
+        const items = this.collect();
+        if (n < items.length) {
+            return items[n];
+        }
+
+        return null;
+    }
+
+    public stepBy(n: number): ArrayStream<Input> {
+        const input = this.collect();
+        function* stepByGenerator() {
+            let iter = 0;
+            for (const item of input) {
+                if (iter % n === 0) {
+                    yield item;
+                }
+                iter++;
+            }
+        }
+
+        return new ArrayStream(stepByGenerator(), this.ops);
     }
 
     public reduce<End>(
@@ -84,15 +111,11 @@ export class ArrayStream<Input> {
 
         outer_loop: for (const input of this.input) {
             let item = input;
+
             for (let i = 0; i < this.ops.length; i++) {
                 const op = this.ops[i];
 
                 switch (op.type) {
-                    case "skip":
-                        for (let j = 0; j < op.count; j++) {
-                            this.input.next();
-                        }
-                        break;
                     case "take":
                         if (count >= op.count) {
                             return new ArrayStream(
