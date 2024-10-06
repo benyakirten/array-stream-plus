@@ -1,14 +1,4 @@
-type Op = FuncOp | NumericOp;
-
-type NumericOp = {
-    type: "take" | "skip";
-    count: number;
-};
-
-type FuncOp = {
-    type: "map" | "filter";
-    op: (input: unknown) => unknown;
-};
+import type { Streamable, Op, FuncOp } from "./types";
 
 /**
  * A class for performing a series of operations on a synchronous and iterable source of data.
@@ -19,14 +9,18 @@ type FuncOp = {
 export class ArrayStream<Input> {
     private input: IterableIterator<Input>;
     constructor(
-        input: Input[] | IterableIterator<Input>,
+        input: Streamable<Input>,
         private ops: Op[] = []
     ) {
+        this.input = ArrayStream.makeIterator(input);
+    }
+
+    private static makeIterator<Stream>(input: Streamable<Stream>) {
         if (Array.isArray(input)) {
-            this.input = input[Symbol.iterator]();
-        } else {
-            this.input = input;
+            return input[Symbol.iterator]();
         }
+
+        return input;
     }
 
     public map<End>(fn: (input: Input) => End): ArrayStream<End> {
@@ -45,6 +39,32 @@ export class ArrayStream<Input> {
         return this;
     }
 
+    public forEach(fn: (input: Input) => void): ArrayStream<Input> {
+        this.ops.push({
+            type: "foreach",
+            op: fn as FuncOp["op"],
+        });
+        return this;
+    }
+
+    public inspect(fn: (input: Input) => void): ArrayStream<Input> {
+        this.ops.push({
+            type: "foreach",
+            op: fn as FuncOp["op"],
+        });
+        return this;
+    }
+
+    public filterMap<End>(
+        fn: (input: Input) => End | null | false | undefined
+    ): ArrayStream<End> {
+        this.ops.push({
+            type: "filterMap",
+            op: fn as FuncOp["op"],
+        });
+        return this as unknown as ArrayStream<End>;
+    }
+
     public take(limit: number): ArrayStream<Input> {
         this.ops.push({
             type: "take",
@@ -61,8 +81,148 @@ export class ArrayStream<Input> {
         return this;
     }
 
+    // Methods that return a new iterator
+    public stepBy(n: number): ArrayStream<Input> {
+        const input = this.collect();
+        function* stepByGenerator() {
+            let iter = 0;
+            for (const item of input) {
+                if (iter % n === 0) {
+                    yield item;
+                }
+                iter++;
+            }
+        }
+
+        return new ArrayStream(stepByGenerator(), this.ops);
+    }
+
+    public chain<Stream>(
+        stream: Streamable<Stream>
+    ): ArrayStream<Input | Stream> {
+        const input = this.collect();
+
+        function* chainGenerator() {
+            for (const item of input) {
+                yield item;
+            }
+
+            for (const item of stream) {
+                yield item;
+            }
+        }
+
+        return new ArrayStream(chainGenerator(), []);
+    }
+
+    public intersperse<Item>(
+        fnOrItem: Item | (() => Item)
+    ): ArrayStream<Input | Item> {
+        const input = this.collect();
+        const _input = ArrayStream.makeIterator(input);
+
+        function* intersperseGenerator() {
+            let count = 0;
+            while (true) {
+                const item = _input.next();
+                yield item.value;
+
+                if (
+                    item.done ||
+                    // Iterators created by arrays will have .done = true after they have gone through every item
+                    // and not when they're on the last item - but intersperse puts them between items, not after each
+                    // Therefore we have to add a special check for arrays since they will iterate specially
+                    (Array.isArray(input) && count == input.length - 1)
+                ) {
+                    break;
+                }
+
+                const intersperseItem =
+                    typeof fnOrItem === "function"
+                        ? (fnOrItem as () => Item)()
+                        : fnOrItem;
+                yield intersperseItem;
+
+                count++;
+            }
+        }
+
+        return new ArrayStream(intersperseGenerator(), []);
+    }
+
+    public zip<Stream>(
+        stream: Streamable<Stream>
+    ): ArrayStream<[Input, Stream]> {
+        const input = this.collect();
+
+        function* zipGenerator() {
+            const streamIter = ArrayStream.makeIterator(stream);
+            for (const item of input) {
+                const streamItem = streamIter.next();
+                if (streamItem.done) {
+                    break;
+                }
+
+                yield [item, streamItem.value] as [Input, Stream];
+            }
+        }
+
+        return new ArrayStream(zipGenerator(), []);
+    }
+
+    public enumerate(): ArrayStream<[number, Input]> {
+        const input = this.collect();
+        function* enumerateGenerator() {
+            for (let i = 0; i < input.length; i++) {
+                yield [i, input[i]] as [number, Input];
+            }
+        }
+
+        return new ArrayStream(enumerateGenerator(), []);
+    }
+
+    // TODO: Find a more efficient way to implement this than to collect the iterator
+    public flatMap<End>(fn: (input: Input) => End[]): ArrayStream<End> {
+        const input = this.collect();
+        function* flatMapGenerator() {
+            for (const item of input) {
+                const result = fn(item);
+                for (const r of result) {
+                    yield r;
+                }
+            }
+        }
+
+        return new ArrayStream(flatMapGenerator(), []);
+    }
+
+    public fuse(): ArrayStream<Input> {
+        const input = this.collect();
+        function* fuseGenerator() {
+            for (const item of input) {
+                if (item === undefined || item === null) {
+                    break;
+                }
+
+                yield item;
+            }
+        }
+
+        return new ArrayStream(fuseGenerator(), []);
+    }
+
+    // Methods that collect the iterator
     public count(): number {
         return this.collect().length;
+    }
+
+    public nth(n: number): Input | null {
+        const items = this.collect();
+        if (n < items.length) {
+            return items[n];
+        }
+
+        return null;
     }
 
     public reduce<End>(
@@ -78,21 +238,136 @@ export class ArrayStream<Input> {
         return result;
     }
 
+    public reduceRight<End>(
+        op: (next: Input, acc: End) => End,
+        initialValue: End
+    ): End {
+        const intermediate = this.collect();
+
+        let result = initialValue;
+        for (let i = intermediate.length - 1; i >= 0; i--) {
+            const item = intermediate[i];
+            result = op(item as unknown as Input, result);
+        }
+        return result;
+    }
+
+    public flat<End, D extends number = 1>(d?: D): FlatArray<End, D>[] {
+        return this.collect().flat(d) as FlatArray<End, D>[];
+    }
+
+    public any(fn: (item: Input) => boolean): boolean {
+        for (const item of this.collect()) {
+            if (fn(item)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public all(fn: (item: Input) => boolean): boolean {
+        for (const item of this.collect()) {
+            if (!fn(item)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public find(fn: (item: Input) => boolean): Input | null {
+        for (const item of this.collect()) {
+            if (fn(item)) {
+                return item;
+            }
+        }
+
+        return null;
+    }
+
+    public findIndex(fn: (item: Input) => boolean): number {
+        const items = this.collect();
+        for (let i = 0; i < items.length; i++) {
+            if (fn(items[i])) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public findLast(fn: (item: Input) => boolean): Input | null {
+        const items = this.collect();
+        for (let i = items.length - 1; i >= 0; i--) {
+            if (fn(items[i])) {
+                return items[i];
+            }
+        }
+
+        return null;
+    }
+
+    public findLastIndex(fn: (item: Input) => boolean): number {
+        const items = this.collect();
+        for (let i = items.length - 1; i >= 0; i--) {
+            if (fn(items[i])) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public includes(item: Input): boolean {
+        const items = this.collect();
+        for (let i = 0; i < items.length; i++) {
+            if (items[i] === item) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public partition(fn: (input: Input) => boolean): [Input[], Input[]] {
+        const input = this.collect();
+        const left: Input[] = [];
+        const right: Input[] = [];
+
+        for (const item of input) {
+            if (fn(item)) {
+                left.push(item);
+            } else {
+                right.push(item);
+            }
+        }
+
+        return [left, right];
+    }
+
     public collect(): Input[] {
         const intermediate: unknown[] = [];
         let count: number = 0;
 
         outer_loop: for (const input of this.input) {
             let item = input;
+            let result;
+
             for (let i = 0; i < this.ops.length; i++) {
                 const op = this.ops[i];
 
                 switch (op.type) {
                     case "skip":
-                        for (let j = 0; j < op.count; j++) {
+                        // Though this doesn't make much sense for the inner loop,
+                        // the other solution I had would have it run through all iterations
+                        // then skip items. This seemed the most efficient.
+                        // TODO: Consider how to put this in a better place while maintaining efficiency
+                        for (let i = 0; i < op.count - 1; i++) {
                             this.input.next();
                         }
-                        break;
+                        this.ops.splice(i, 1);
+                        continue outer_loop;
                     case "take":
                         if (count >= op.count) {
                             return new ArrayStream(
@@ -110,6 +385,20 @@ export class ArrayStream<Input> {
                     case "map":
                         item = op.op(item) as Input;
                         break;
+                    case "foreach":
+                        op.op(item);
+                        break;
+                    case "filterMap":
+                        result = op.op(item);
+                        if (
+                            result === null ||
+                            result === false ||
+                            result === undefined
+                        ) {
+                            continue outer_loop;
+                        }
+                        item = result as Input;
+                        break;
                     default:
                         break;
                 }
@@ -122,5 +411,3 @@ export class ArrayStream<Input> {
         return intermediate as Input[];
     }
 }
-
-// TODO: Add an asynchronous version
