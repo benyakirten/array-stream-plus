@@ -29,6 +29,19 @@ describe("ArrayStream", () => {
         expect(got).toEqual([2, 4, 6]);
     });
 
+    test("take should take a fixed number of items from a generator that will generate infinite items", () => {
+        function* generate() {
+            let i = 0;
+            while (true) {
+                yield i++;
+            }
+        }
+
+        const got = new ArrayStream(generate()).take(5).collect();
+
+        expect(got).toEqual([0, 1, 2, 3, 4]);
+    });
+
     test("take should continue to perform operations as expected after the limit has been reached", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
             .filter((x) => x % 2 === 0)
@@ -274,7 +287,7 @@ describe("ArrayStream", () => {
     test("reduce should reduce the remaining items after all operations have been performed", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14])
             .map((x) => ({ value: x * 2 }))
-            .reduce((next, acc) => ({ total: next.value + acc.total }), {
+            .reduce((acc, next) => ({ total: next.value + acc.total }), {
                 total: 0,
             });
 
@@ -286,7 +299,7 @@ describe("ArrayStream", () => {
             .filter((x) => x % 2 === 0)
             .take(6)
             .map((x) => ({ value: x * 2 }))
-            .reduce((next, acc) => ({ total: next.value + acc.total }), {
+            .reduce((acc, next) => ({ total: next.value + acc.total }), {
                 total: 0,
             });
 
@@ -497,7 +510,7 @@ describe("ArrayStream", () => {
             { val: 2 },
             { val: 3 },
             { val: 4 },
-        ]).reduce<{ val: number }[]>((next, acc) => {
+        ]).reduce<{ val: number }[]>((acc, next) => {
             if (acc.length === 2) {
                 return acc;
             }
@@ -514,7 +527,7 @@ describe("ArrayStream", () => {
             { val: 2 },
             { val: 3 },
             { val: 4 },
-        ]).reduceRight<{ val: number }[]>((next, acc) => {
+        ]).reduceRight<{ val: number }[]>((acc, next) => {
             if (acc.length === 2) {
                 return acc;
             }
