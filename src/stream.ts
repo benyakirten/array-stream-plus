@@ -188,6 +188,21 @@ export class ArrayStream<Input> {
         return new ArrayStream(flatMapGenerator(), []);
     }
 
+    public fuse(): ArrayStream<Input> {
+        const input = this.collect();
+        function* fuseGenerator() {
+            for (const item of input) {
+                if (item === undefined || item === null) {
+                    break;
+                }
+
+                yield item;
+            }
+        }
+
+        return new ArrayStream(fuseGenerator(), []);
+    }
+
     // Methods that collect the iterator
     public count(): number {
         return this.collect().length;
