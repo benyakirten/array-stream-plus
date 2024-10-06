@@ -46,4 +46,4 @@ After spending time in Elixir and Rust then return to JavaScript, I miss some of
 
 ## Contributing
 
-Please take a look at the contributing guide (coming soon)
+I would be overjoyed if anyone wanted to contribute! Please check out the [Contribution Guide](./CONTRIBUTING.md) to get started.
