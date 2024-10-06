@@ -421,4 +421,21 @@ describe("ArrayStream", () => {
         expect(got).toBe(-1);
         expect(i).toBe(9);
     });
+
+    test("includes should return with the same shallow value as the predicate", () => {
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).includes(5);
+        expect(got).toBe(true);
+    });
+
+    test("includes should return false if the value is not in the array", () => {
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).includes(-1);
+        expect(got).toBe(false);
+    });
+
+    test("includes should not work for reference values", () => {
+        const got = new ArrayStream([{ a: 1 }, { a: 2 }, { a: 3 }]).includes({
+            a: 2,
+        });
+        expect(got).toBe(false);
+    });
 });

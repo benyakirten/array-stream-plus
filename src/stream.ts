@@ -283,6 +283,17 @@ export class ArrayStream<Input> {
         return -1;
     }
 
+    public includes(item: Input): boolean {
+        const items = this.collect();
+        for (let i = 0; i < items.length; i++) {
+            if (items[i] === item) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public partition(fn: (input: Input) => boolean): [Input[], Input[]] {
         const input = this.collect();
         const left: Input[] = [];
