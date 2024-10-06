@@ -39,6 +39,24 @@ export class ArrayStream<Input> {
         return this;
     }
 
+    public forEach(fn: (input: Input) => void): ArrayStream<Input> {
+        this.ops.push({
+            type: "foreach",
+            op: fn as FuncOp["op"],
+        });
+        return this;
+    }
+
+    public filterMap<End>(
+        fn: (input: Input) => End | null | false | undefined
+    ): ArrayStream<End> {
+        this.ops.push({
+            type: "filterMap",
+            op: fn as FuncOp["op"],
+        });
+        return this as unknown as ArrayStream<End>;
+    }
+
     public take(limit: number): ArrayStream<Input> {
         this.ops.push({
             type: "take",
@@ -177,6 +195,7 @@ export class ArrayStream<Input> {
 
         outer_loop: for (const input of this.input) {
             let item = input;
+            let result;
 
             for (let i = 0; i < this.ops.length; i++) {
                 const op = this.ops[i];
@@ -208,6 +227,20 @@ export class ArrayStream<Input> {
                         break;
                     case "map":
                         item = op.op(item) as Input;
+                        break;
+                    case "foreach":
+                        op.op(item);
+                        break;
+                    case "filterMap":
+                        result = op.op(item);
+                        if (
+                            result === null ||
+                            result === false ||
+                            result === undefined
+                        ) {
+                            continue outer_loop;
+                        }
+                        item = result as Input;
                         break;
                     default:
                         break;

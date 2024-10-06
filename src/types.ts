@@ -6,7 +6,7 @@ export type NumericOp = {
 };
 
 export type FuncOp = {
-    type: "map" | "filter";
+    type: "map" | "filter" | "foreach" | "filterMap";
     op: (input: unknown) => unknown;
 };
 
