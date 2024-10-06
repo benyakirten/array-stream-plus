@@ -162,6 +162,17 @@ export class ArrayStream<Input> {
         return new ArrayStream(zipGenerator(), []);
     }
 
+    public enumerate(): ArrayStream<[number, Input]> {
+        const input = this.collect();
+        function* enumerateGenerator() {
+            for (let i = 0; i < input.length; i++) {
+                yield [i, input[i]] as [number, Input];
+            }
+        }
+
+        return new ArrayStream(enumerateGenerator(), []);
+    }
+
     // Methods that collect the iterator
     public count(): number {
         return this.collect().length;

@@ -249,5 +249,26 @@ describe("ArrayStream", () => {
 
             expect(got).toEqual([2, 0, 4]);
         });
+
+        test("enumerate should return a stream of tuples with the index and the item", () => {
+            const got = new ArrayStream([100, 200, 300]).enumerate().collect();
+            expect(got).toEqual([
+                [0, 100],
+                [1, 200],
+                [2, 300],
+            ]);
+        });
+
+        test("enumerate should work with other operations", () => {
+            const got = new ArrayStream([100, 200, 300])
+                .filter((x) => x % 2 === 0)
+                .enumerate()
+                .collect();
+
+            expect(got).toEqual([
+                [0, 200],
+                [1, 300],
+            ]);
+        });
     });
 });
