@@ -242,6 +242,22 @@ export class ArrayStream<Input> {
         return this.collect().flat(d) as FlatArray<End, D>[];
     }
 
+    public partition(fn: (input: Input) => boolean): [Input[], Input[]] {
+        const input = this.collect();
+        const left: Input[] = [];
+        const right: Input[] = [];
+
+        for (const item of input) {
+            if (fn(item)) {
+                left.push(item);
+            } else {
+                right.push(item);
+            }
+        }
+
+        return [left, right];
+    }
+
     public collect(): Input[] {
         const intermediate: unknown[] = [];
         let count: number = 0;

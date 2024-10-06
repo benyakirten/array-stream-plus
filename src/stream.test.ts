@@ -318,4 +318,15 @@ describe("ArrayStream", () => {
         const got = new ArrayStream([1, [2, [3, [4, 5]]]]).flat(2);
         expect(got).toEqual([1, 2, 3, [4, 5]]);
     });
+
+    test("partition should split the array into two based on the predicate", () => {
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).partition(
+            (x) => x % 2 === 0
+        );
+
+        expect(got).toEqual([
+            [2, 4, 6, 8],
+            [1, 3, 5, 7, 9],
+        ]);
+    });
 });
