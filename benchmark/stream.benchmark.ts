@@ -45,24 +45,24 @@ function testItertoolsPerformance(
 }
 
 export function* testPerformance(numReps: number) {
-    const POWER_OF_TEN = 7;
+    const POWERS_OF_TEN = 7;
 
     const streamPerformance: number[][] = Array.from(
-        { length: POWER_OF_TEN },
-        () => Array.from({ length: POWER_OF_TEN }, () => 0)
+        { length: POWERS_OF_TEN },
+        () => Array.from({ length: POWERS_OF_TEN }, () => 0)
     );
     const arrayPerformance: number[][] = Array.from(
-        { length: POWER_OF_TEN },
-        () => Array.from({ length: POWER_OF_TEN }, () => 0)
+        { length: POWERS_OF_TEN },
+        () => Array.from({ length: POWERS_OF_TEN }, () => 0)
     );
     const itertoolsPerformance: number[][] = Array.from(
-        { length: POWER_OF_TEN },
-        () => Array.from({ length: POWER_OF_TEN }, () => 0)
+        { length: POWERS_OF_TEN },
+        () => Array.from({ length: POWERS_OF_TEN }, () => 0)
     );
 
     for (let i = 0; i < numReps; i++) {
-        for (let j = 0; j < POWER_OF_TEN; j++) {
-            for (let k = 0; k < POWER_OF_TEN; k++) {
+        for (let j = 0; j < POWERS_OF_TEN; j++) {
+            for (let k = 0; k < POWERS_OF_TEN; k++) {
                 const len = 10 ** j;
                 const ops = 10 ** k;
                 const streamPerformanceValue = testArrayStreamPerformance(

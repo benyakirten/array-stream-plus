@@ -98,7 +98,7 @@
 
         <script>
             function createTable(id) {
-                const POWER_OF_TEN = 6;
+                const POWERS_OF_TEN = 6;
                 const header = document.createElement("h2");
                 header.textContent = id;
 
@@ -108,7 +108,8 @@
                 const thead = document.createElement("thead");
                 const tr = document.createElement("tr");
                 tr.appendChild(document.createElement("th"));
-                for (let i = 0; i <= POWER_OF_TEN; i++) {
+
+                for (let i = 0; i <= POWERS_OF_TEN; i++) {
                     const th = document.createElement("th");
                     th.textContent = 10 ** i;
                     tr.appendChild(th);
@@ -116,14 +117,14 @@
                 thead.appendChild(tr);
 
                 const tbody = document.createElement("tbody");
-                for (let i = 0; i <= POWER_OF_TEN; i++) {
+                for (let i = 0; i <= POWERS_OF_TEN; i++) {
                     const tr = document.createElement("tr");
                     const firstTd = document.createElement("td");
 
                     firstTd.textContent = 10 ** i;
                     tr.appendChild(firstTd);
 
-                    for (let j = 0; j <= POWER_OF_TEN; j++) {
+                    for (let j = 0; j <= POWERS_OF_TEN; j++) {
                         const td = document.createElement("td");
                         td.textContent = "No Results";
                         tr.appendChild(td);
