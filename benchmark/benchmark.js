@@ -374,4 +374,6 @@ function* testPerformance(numReps) {
     yield [streamPerformance, arrayPerformance, itertoolsPerformance];
   }
 }
-globalThis.testPerformance = testPerformance;
+export {
+  testPerformance
+};

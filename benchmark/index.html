@@ -20,9 +20,11 @@
 
             tr > td {
                 text-align: center;
+                width: 12rem;
             }
 
             tr > td:first-child {
+                width: fit-content;
                 text-align: right;
             }
 
@@ -37,8 +39,48 @@
             .itertools-data {
                 color: darkred;
             }
+
+            #counter-container {
+                display: flex;
+                gap: 2rem;
+                align-items: center;
+            }
+
+            button {
+                /** Reset default styles */
+                all: unset;
+
+                cursor: pointer;
+                padding: 0.5rem 1rem;
+                border: 1px solid darkgray;
+                background-color: blanchedalmond;
+
+                transition: all 0.3s ease;
+
+                &:hover {
+                    border-color: black;
+                }
+            }
+
+            /* HTML: <div class="loader"></div> */
+            .loader {
+                width: 1.5rem;
+                aspect-ratio: 1;
+                border-radius: 50%;
+                border: 8px solid lightgray;
+                border-right-color: black;
+                animation: spin 1s infinite linear;
+            }
+
+            @keyframes spin {
+                0% {
+                    transform: rotate(0deg);
+                }
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
         </style>
-        <script src="./benchmark.js"></script>
     </head>
     <body>
         <h1>Performance Benchmark</h1>
@@ -50,6 +92,9 @@
         <p class="array-data">Array performance is in green.</p>
         <p class="itertools-data">Itertools performance is in red.</p>
         <button>Start Getting Performance</button>
+        <div id="counter-container">
+            <p></p>
+        </div>
 
         <script>
             function createTable(id) {
@@ -95,6 +140,11 @@
                 return table;
             }
 
+            function roundToPlace(val, place) {
+                const _place = 10 ** place;
+                return Math.round(val * place) / place;
+            }
+
             function updateTable(table, data) {
                 const tbody = table.querySelector("tbody");
                 const rows = tbody.querySelectorAll("tr");
@@ -112,15 +162,20 @@
                     for (let j = 0; j < streamPerformance[i].length; j++) {
                         const streamData = document.createElement("span");
                         streamData.classList.add("stream-data");
-                        streamData.textContent = streamPerformance[i][j] + "/";
+                        streamData.textContent =
+                            roundToPlace(streamPerformance[i][j], 2) + "/";
 
                         const arrayData = document.createElement("span");
                         arrayData.classList.add("array-data");
-                        arrayData.textContent = arrayPerformance[i][j] + "/";
+                        arrayData.textContent =
+                            roundToPlace(arrayPerformance[i][j], 2) + "/";
 
                         const itertoolsData = document.createElement("span");
                         itertoolsData.classList.add("itertools-data");
-                        itertoolsData.textContent = itertoolsPerformance[i][j];
+                        itertoolsData.textContent = roundToPlace(
+                            itertoolsPerformance[i][j],
+                            2
+                        );
 
                         const cell = cells[j + 1];
                         cell.textContent = "";
@@ -131,15 +186,46 @@
                 }
             }
 
+            const NUMBER_OF_REPETITIONS = 1_000;
             const table = createTable("data");
-            function startIterating(total) {
-                for (const data of testPerformance(total)) {
-                    updateTable(table, data);
-                }
+            const counterContainer =
+                document.getElementById("counter-container");
+            const count = counterContainer.querySelector("p");
+            let counter = 0;
+
+            function updateCounter() {
+                count.textContent = `Count: ${counter}/${NUMBER_OF_REPETITIONS}`;
             }
 
-            document.querySelector("button").addEventListener("click", () => {
-                startIterating(1);
+            function createLoader() {
+                const loader = document.createElement("div");
+                loader.classList.add("loader");
+                counterContainer.appendChild(loader);
+            }
+
+            function removeLoader() {
+                const loader = document.querySelector(".loader");
+                loader?.remove();
+            }
+
+            const worker = new Worker("./worker.js", { type: "module" });
+            worker.onmessage = (event) => {
+                updateTable(table, event.data);
+                counter++;
+                updateCounter();
+
+                if (counter === NUMBER_OF_REPETITIONS) {
+                    removeLoader();
+                }
+            };
+
+            const button = document.querySelector("button");
+            button.addEventListener("click", () => {
+                counter = 0;
+                updateCounter();
+                createLoader();
+                worker.postMessage(NUMBER_OF_REPETITIONS);
+                button.remove();
             });
         </script>
     </body>

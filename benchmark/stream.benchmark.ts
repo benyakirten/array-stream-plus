@@ -44,7 +44,7 @@ function testItertoolsPerformance(
     return performance.now() - p1;
 }
 
-function* testPerformance(numReps: number) {
+export function* testPerformance(numReps: number) {
     const POWER_OF_TEN = 7;
 
     const streamPerformance: number[][] = Array.from(
@@ -90,4 +90,3 @@ function* testPerformance(numReps: number) {
         yield [streamPerformance, arrayPerformance, itertoolsPerformance];
     }
 }
-(globalThis as Record<string, unknown>).testPerformance = testPerformance;
