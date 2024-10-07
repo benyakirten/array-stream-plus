@@ -39,6 +39,7 @@
         "lint:fix": "eslint src/**/*.ts --fix",
         "test": "vitest",
         "test:ci": "vitest --run",
-        "benchmark:html": "vite ./benchmark"
+        "benchmark:html": "bun run benchmark:build && vite ./benchmark",
+        "benchmark:build": "make benchmark-build"
     }
 }
