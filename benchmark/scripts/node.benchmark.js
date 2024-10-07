@@ -1,41 +1,36 @@
 import { writeFileSync } from "node:fs";
 
-import { testPerformance } from "./stream.benchmark";
+import { testPerformance } from "./stream.benchmark.js";
 
 const DEFAULT_NUM_REPS = 1000;
 const POWERS_OF_TENS = 7;
 
-function generateHeader(): string {
-    let firstLine = "| |";
+function generateHeader() {
+    let firstCell = "| |";
     for (let i = 0; i < POWERS_OF_TENS; i++) {
-        firstLine += ` ${10 ** i} |`;
+        firstCell += ` ${10 ** i} |`;
     }
 
-    let secondLine = "| ---: |";
+    let otherCells = "| ---: |";
     for (let i = 0; i < POWERS_OF_TENS; i++) {
-        secondLine += " :---: |";
+        otherCells += " :---: |";
     }
-    return `${firstLine}\n${secondLine}\n`;
+    return `${firstCell}\n${otherCells}\n`;
 }
 
-function generateDataLine(
-    rep: number,
-    streamData: number[],
-    arrayData: number[],
-    itertoolsData: number[]
-) {
+function generateDataLine(rep, streamData, arrayData, itertoolsData) {
     let line = `${10 ** rep}|`;
     for (let i = 0; i < streamData.length; i++) {
-        const streamTime = streamData[i];
-        const arrayTime = arrayData[i];
-        const itertoolsTime = itertoolsData[i];
-        line += ` ${streamTime}/${arrayTime}/ ${itertoolsTime} |`;
+        const streamTime = roundToPlace(streamData[i], 2);
+        const arrayTime = roundToPlace(arrayData[i], 2);
+        const itertoolsTime = roundToPlace(itertoolsData[i], 2);
+        line += ` ${streamTime}/${arrayTime}/${itertoolsTime} |`;
     }
 
     return `${line}\n`;
 }
 
-function writeData(file: string, data: number[][][]) {
+function writeData(file, data) {
     let allLines = "";
 
     const header = generateHeader();
@@ -53,20 +48,21 @@ function writeData(file: string, data: number[][][]) {
     writeFileSync(file, allLines);
 }
 
-function getTestData(numReps: number) {
+function getTestData(numReps) {
     let count = 0;
-    let output: number[][][] = [];
+    let output = [];
 
     for (const data of testPerformance(numReps)) {
         output = data;
         count++;
+        // eslint-disable-next-line no-undef
         console.log(`Finished ${count}/${numReps} repetitions`);
     }
 
     return output;
 }
 
-function processArgs(args: string[]) {
+function processArgs(args) {
     const outFile = args[0];
     if (!outFile) {
         throw new Error("No output file specified");
@@ -81,4 +77,10 @@ function processArgs(args: string[]) {
     writeData(outFile, data);
 }
 
+function roundToPlace(val, place) {
+    const _place = 10 ** place;
+    return Math.round(val * _place) / _place;
+}
+
+// eslint-disable-next-line no-undef
 processArgs(process.argv.slice(2));

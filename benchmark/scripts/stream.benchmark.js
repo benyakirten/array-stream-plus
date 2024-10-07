@@ -325,7 +325,7 @@ class ArrayStream {
   }
 }
 
-// benchmark/stream.benchmark.ts
+// benchmark/scripts/stream.benchmark.ts
 function testArrayStreamPerformance(lengthAmount, opCount) {
   const p1 = performance.now();
   const arr = Array.from({ length: lengthAmount }, (_, i) => i);
@@ -354,13 +354,13 @@ function testItertoolsPerformance(lengthAmount, opCount) {
   return performance.now() - p1;
 }
 function* testPerformance(numReps) {
-  const POWER_OF_TEN = 7;
-  const streamPerformance = Array.from({ length: POWER_OF_TEN }, () => Array.from({ length: POWER_OF_TEN }, () => 0));
-  const arrayPerformance = Array.from({ length: POWER_OF_TEN }, () => Array.from({ length: POWER_OF_TEN }, () => 0));
-  const itertoolsPerformance = Array.from({ length: POWER_OF_TEN }, () => Array.from({ length: POWER_OF_TEN }, () => 0));
+  const POWERS_OF_TEN = 7;
+  const streamPerformance = Array.from({ length: POWERS_OF_TEN }, () => Array.from({ length: POWERS_OF_TEN }, () => 0));
+  const arrayPerformance = Array.from({ length: POWERS_OF_TEN }, () => Array.from({ length: POWERS_OF_TEN }, () => 0));
+  const itertoolsPerformance = Array.from({ length: POWERS_OF_TEN }, () => Array.from({ length: POWERS_OF_TEN }, () => 0));
   for (let i = 0;i < numReps; i++) {
-    for (let j = 0;j < POWER_OF_TEN; j++) {
-      for (let k = 0;k < POWER_OF_TEN; k++) {
+    for (let j = 0;j < POWERS_OF_TEN; j++) {
+      for (let k = 0;k < POWERS_OF_TEN; k++) {
         const len = 10 ** j;
         const ops = 10 ** k;
         const streamPerformanceValue = testArrayStreamPerformance(len, ops);

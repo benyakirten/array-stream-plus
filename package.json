@@ -39,9 +39,9 @@
         "lint:fix": "eslint src/**/*.ts --fix",
         "test": "vitest",
         "test:ci": "vitest --run",
-        "benchmark:html": "bun benchmark:build && vite ./benchmark",
-        "benchmark:build": "bun build benchmark/stream.benchmark.ts --outfile=benchmark/benchmark.js",
-        "benchmark:node:build": "bun benchmark/node.benchmark.ts --outfile=node-benchmark.js",
-        "benchmark:node:run": "bun benchmark:node:build && node ./benchmark/node-benchmark.js ./benchmark/artifacts/node.md & bun ./benchmark/node-benchmark.js ./benchmark/artifacts/bun.md"
+        "benchmark:browser:serve": "bun benchmark:browser:build && vite ./benchmark",
+        "benchmark:browser:build": "bun build benchmark/scripts/stream.benchmark.ts --outfile=benchmark/scripts/stream.benchmark.js",
+        "benchmark:node:run": "node ./benchmark/scripts/node.benchmark.js ./benchmark/tables/node.md",
+        "benchmark:bun:run": "bun ./benchmark/scripts/node.benchmark.js ./benchmark/tables/bun.md"
     }
 }

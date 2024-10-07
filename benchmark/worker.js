@@ -1,4 +1,4 @@
-import { testPerformance } from "./benchmark.js";
+import { testPerformance } from "./scripts/stream.benchmark.js";
 
 /**
  *
