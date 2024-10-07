@@ -1,0 +1,146 @@
+<html>
+    <head>
+        <style>
+            h2 {
+                margin-block: 1rem;
+                text-transform: capitalize;
+            }
+
+            p {
+                margin-block: 0.5rem;
+            }
+
+            th {
+                text-align: center;
+            }
+
+            td {
+                padding: 0.5rem;
+            }
+
+            tr > td {
+                text-align: center;
+            }
+
+            tr > td:first-child {
+                text-align: right;
+            }
+
+            .stream-data {
+                color: darkblue;
+            }
+
+            .array-data {
+                color: darkgreen;
+            }
+
+            .itertools-data {
+                color: darkred;
+            }
+        </style>
+        <script src="./benchmark.js"></script>
+    </head>
+    <body>
+        <h1>Performance Benchmark</h1>
+        <p>Number of elements on X axis</p>
+        <p>Number of iterations on Y axis</p>
+        <p>Time to compute in milliseconds (lower is better).</p>
+
+        <p class="stream-data">Stream performance is in blue.</p>
+        <p class="array-data">Array performance is in green.</p>
+        <p class="itertools-data">Itertools performance is in red.</p>
+        <button>Start Getting Performance</button>
+
+        <script>
+            function createTable(id) {
+                const POWER_OF_TEN = 6;
+                const header = document.createElement("h2");
+                header.textContent = id;
+
+                const table = document.createElement("table");
+                table.id = id;
+
+                const thead = document.createElement("thead");
+                const tr = document.createElement("tr");
+                tr.appendChild(document.createElement("th"));
+                for (let i = 0; i <= POWER_OF_TEN; i++) {
+                    const th = document.createElement("th");
+                    th.textContent = 10 ** i;
+                    tr.appendChild(th);
+                }
+                thead.appendChild(tr);
+
+                const tbody = document.createElement("tbody");
+                for (let i = 0; i <= POWER_OF_TEN; i++) {
+                    const tr = document.createElement("tr");
+                    const firstTd = document.createElement("td");
+
+                    firstTd.textContent = 10 ** i;
+                    tr.appendChild(firstTd);
+
+                    for (let j = 0; j <= POWER_OF_TEN; j++) {
+                        const td = document.createElement("td");
+                        td.textContent = "No Results";
+                        tr.appendChild(td);
+                    }
+                    tbody.appendChild(tr);
+                }
+
+                table.appendChild(thead);
+                table.appendChild(tbody);
+
+                document.body.appendChild(header);
+                document.body.appendChild(table);
+
+                return table;
+            }
+
+            function updateTable(table, data) {
+                const tbody = table.querySelector("tbody");
+                const rows = tbody.querySelectorAll("tr");
+
+                const [
+                    streamPerformance,
+                    arrayPerformance,
+                    itertoolsPerformance,
+                ] = data;
+
+                for (let i = 0; i < streamPerformance.length; i++) {
+                    const row = rows[i];
+                    const cells = row.querySelectorAll("td");
+
+                    for (let j = 0; j < streamPerformance[i].length; j++) {
+                        const streamData = document.createElement("span");
+                        streamData.classList.add("stream-data");
+                        streamData.textContent = streamPerformance[i][j] + "/";
+
+                        const arrayData = document.createElement("span");
+                        arrayData.classList.add("array-data");
+                        arrayData.textContent = arrayPerformance[i][j] + "/";
+
+                        const itertoolsData = document.createElement("span");
+                        itertoolsData.classList.add("itertools-data");
+                        itertoolsData.textContent = itertoolsPerformance[i][j];
+
+                        const cell = cells[j + 1];
+                        cell.textContent = "";
+                        cell.appendChild(streamData);
+                        cell.appendChild(arrayData);
+                        cell.appendChild(itertoolsData);
+                    }
+                }
+            }
+
+            const table = createTable("data");
+            function startIterating(total) {
+                for (const data of testPerformance(total)) {
+                    updateTable(table, data);
+                }
+            }
+
+            document.querySelector("button").addEventListener("click", () => {
+                startIterating(1);
+            });
+        </script>
+    </body>
+</html>
