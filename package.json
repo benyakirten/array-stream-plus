@@ -41,6 +41,10 @@
         "test:ci": "vitest --run",
         "benchmark:browser:serve": "bun benchmark:browser:build && vite ./benchmark",
         "benchmark:browser:build": "bun build benchmark/scripts/stream.benchmark.ts --outfile=benchmark/scripts/stream.benchmark.js",
+        "benchmark:browser:convert:safari": "bun ./benchmark/scripts/parse-html.benchmark.ts ./benchmark/artifacts/safari.table.html ./benchmark/tables/safari.md",
+        "benchmark:browser:convert:firefox": "bun ./benchmark/scripts/parse-html.benchmark.ts ./benchmark/artifacts/firefox.table.html ./benchmark/tables/firefox.md",
+        "benchmark:browser:convert:chrome": "bun ./benchmark/scripts/parse-html.benchmark.ts ./benchmark/artifacts/chrome.table.html ./benchmark/tables/chrome.md",
+        "benchmark:browser:convert": "bun benchmark:browser:convert:safari && bun benchmark:browser:convert:firefox && bun benchmark:browser:convert:chrome",
         "benchmark:node:run": "node ./benchmark/scripts/node.benchmark.js ./benchmark/tables/node.md",
         "benchmark:bun:run": "bun ./benchmark/scripts/node.benchmark.js ./benchmark/tables/bun.md"
     }
