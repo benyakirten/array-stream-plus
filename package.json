@@ -1,5 +1,5 @@
 {
-    "name": "array-streams",
+    "name": "array-stream",
     "main": "dist/bundle.min.js",
     "types": "dist/types/index.d.ts",
     "files": [
@@ -16,7 +16,7 @@
     ],
     "description": "A library for working with arrays in a functional way motivated by Rust iterators.",
     "license": "MIT",
-    "repository": "github:benyakirten/array-streams",
+    "repository": "github:benyakirten/array-stream",
     "homepage": "https://github.com/benyakirten/array-stream",
     "bugs": {
         "url": "https://github.com/benyakirten/array-stream/issues"

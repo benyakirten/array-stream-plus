@@ -1,10 +1,10 @@
 # Overview
 
-Benchmarks are an average response time over 1000 measurements with a variable amount of items and variable amount of map and filter operations. Benchmarks are conducted across three browsers (Safari, Chrome and Firefox) and two runtime environments (Node and Bun). Measurements were conducted across Array Streams (this library), Array methods (i.e. `Array.filter` and `Array.map`) and [itertools](https://github.com/nvie/itertools).
+Benchmarks are an average response time over 1000 measurements with a variable amount of items and variable amount of map and filter operations. Benchmarks are conducted across three browsers (Safari, Chrome and Firefox) and two runtime environments (Node and Bun). Measurements were conducted across Array Stream (this library), Array methods (i.e. `Array.filter` and `Array.map`) and [itertools](https://github.com/nvie/itertools).
 
 -   Amount of items increases along the X axis
 -   Amount of operations increases along the Y axis
--   Execution time is in milliseconds with the first item being Array Streams, the second built-in Array methods and third itertools.
+-   Execution time is in milliseconds with the first item being Array Stream, the second built-in Array methods and third itertools.
 
 ## Data
 

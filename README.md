@@ -1,6 +1,6 @@
 [![Unit Test](https://github.com/benyakirten/array-stream/actions/workflows/unit_test.yml/badge.svg)](https://github.com/benyakirten/array-stream/actions/workflows/unit_test.yml)
 
-# Array Streams
+# Array Stream
 
 ## Introduction
 
