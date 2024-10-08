@@ -9,10 +9,10 @@
     "author": "Ben Horowitz <benyakir.horowitz@gmail.com> (https://benyakir-writes.com)",
     "keywords": [
         "array",
-        "streams",
+        "stream",
         "functional",
         "rust",
-        "iterators"
+        "iterator"
     ],
     "description": "A library for working with arrays in a functional way motivated by Rust iterators.",
     "license": "MIT",
