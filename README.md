@@ -35,8 +35,10 @@ const result = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
 console.log(result); // [{ idx: 0, value: 1, next: 2 }, { idx: 1, value: 2, next: 3 }, { idx: 2, value: 3, next: 4 }]
 ```
 
+## Benchmarks
+
+A writeup of benchmarks is available [here](./BENCHMARK.md). The conclusion: use native array methods if you like functional programming and care about performance.
+
 ## Contributing
 
 I would be overjoyed if anyone wanted to contribute! Please check out the [Contribution Guide](./CONTRIBUTING.md) to get started.
-
-## Benchmarks
