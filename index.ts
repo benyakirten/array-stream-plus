@@ -1,1 +1,1 @@
-console.log("Hello via Bun!")
+export { ArrayStream } from "./src/stream";

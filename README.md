@@ -4,7 +4,7 @@
 
 ## Introduction
 
-Want a quick, easy and efficient
+Tired of how few methods are available for JavaScript arrays? Missing Rust iterators or Elixir enumerables and streams? Well, do I have a solution that is slightly easier.
 
 ```ts
 function* gen(start: number) {
@@ -29,20 +29,15 @@ const result = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
     .map((x) => ({ value: x }))
     .filter(({ value }) => value <= 3)
     .enumerate()
-    .flatMap(({ value }) => ({ value, next: value + 1 }))
+    .flatMap(([idx, { value }]) => ({ idx, value, next: value + 1 }))
     .collect();
 
-console.log(result); // [{ value: 1, next: 2 }, { value: 2, next: 3 }, { value: 3, next: 4 }]
+console.log(result); // [{ idx: 0, value: 1, next: 2 }, { idx: 1, value: 2, next: 3 }, { idx: 2, value: 3, next: 4 }]
 ```
 
-## Why
+## Benchmarks
 
-1. It's more efficient than native array methods because it consolidates all the operations into one function. (TODO: Add benchmarks)
-2. It has more features than array methods.
-
-## Motivation
-
-After spending time in Elixir and Rust then return to JavaScript, I miss some of the nicer features. One of the things that I miss most are the cool iterator and enumerable features of those languages, so I figured I should try to bring them to the frontend (or Node).
+A writeup of benchmarks is available [here](./BENCHMARK.md). The conclusion: use native array methods if you like functional programming and care about performance.
 
 ## Contributing
 
