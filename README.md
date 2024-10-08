@@ -1,10 +1,11 @@
 [![Unit Test](https://github.com/benyakirten/array-stream/actions/workflows/unit_test.yml/badge.svg)](https://github.com/benyakirten/array-stream/actions/workflows/unit_test.yml)
+![](https://img.badgesize.io/benyakirten/array-stream-plus/main/compiled/index.js?comrpession=gzip)
 
 # Array Stream Plus
 
 ## Introduction
 
-Tired of how few methods are available for JavaScript arrays? Missing Rust iterators or Elixir enumerables and streams? Want a package with no dependencies and a small footprint?
+Tired of how few methods are available for JavaScript arrays? Missing Rust iterators or Elixir enumerables and streams? Want a package with no dependencies and a small footprint. It's 1kb gzipped and minified. If you're wondering why NPM is saying 37kb, it's for the source map and types, which you hopefully won't be shipping to clients.
 
 ```ts
 function* gen(start: number) {
@@ -19,7 +20,7 @@ const result = new ArrayStream(gen())
     // 0, 4, 16, 36, 64, 100 ...
     .take(5)
     // 0, 4, 16, 36, 64
-    .reduce((acc, next) => acc + next);
+    .reduce((acc, next) => acc + next, 0);
 
 console.log(result); // 120
 ```

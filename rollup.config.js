@@ -14,6 +14,6 @@ export default {
             declaration: true,
             declarationDir: "dist/types",
         }),
-        terser(), // Minify the output
+        terser(),
     ],
 };
