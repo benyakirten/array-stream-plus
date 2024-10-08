@@ -1,21 +1,22 @@
 {
     "name": "array-streams",
+    "main": "dist/bundle.min.js",
+    "types": "dist/types/index.d.ts",
+    "files": [
+        "dist"
+    ],
     "version": "0.1.0",
-    "author": {
-        "name": "Ben Horowitz",
-        "email": "benyakir.horowitz@gmail.com"
-    },
+    "author": "Ben Horowitz <benyakir.horowitz@gmail.com> (https://benyakir-writes.com)",
     "keywords": [
         "array",
         "streams",
-        "functional"
+        "functional",
+        "rust",
+        "iterators"
     ],
     "description": "A library for working with arrays in a functional way motivated by Rust iterators.",
     "license": "MIT",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/benyakirten/array-stream"
-    },
+    "repository": "github:benyakirten/array-streams",
     "homepage": "https://github.com/benyakirten/array-stream",
     "bugs": {
         "url": "https://github.com/benyakirten/array-stream/issues"
@@ -30,6 +31,7 @@
         "eslint": "^9.12.0",
         "itertools": "^2.3.2",
         "prettier": "^3.3.3",
+        "rimraf": "^6.0.1",
         "rollup": "^4.24.0",
         "rollup-plugin-terser": "^7.0.2",
         "tslib": "^2.7.0",
@@ -41,7 +43,7 @@
         "typescript": "^5.6.2"
     },
     "scripts": {
-        "build": "bun scripts/clean.ts && bun rollup -c -m",
+        "build": "rimraf dist && bun rollup -c -m",
         "format:check": "prettier src/**/*.ts --check",
         "format:fix": "prettier src/**/*.ts --write",
         "lint:check": "eslint src/**/*.ts",
