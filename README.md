@@ -1,5 +1,5 @@
 [![Unit Test](https://github.com/benyakirten/array-stream/actions/workflows/unit_test.yml/badge.svg)](https://github.com/benyakirten/array-stream/actions/workflows/unit_test.yml)
-![](https://img.badgesize.io/benyakirten/array-stream-plus/main/compiled/index.js?comrpession=gzip)
+![](https://img.badgesize.io/benyakirten/array-stream-plus/main/compiled.js?compression=gzip)
 
 # Array Stream Plus
 
