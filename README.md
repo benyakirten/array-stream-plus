@@ -1,10 +1,10 @@
 [![Unit Test](https://github.com/benyakirten/array-stream/actions/workflows/unit_test.yml/badge.svg)](https://github.com/benyakirten/array-stream/actions/workflows/unit_test.yml)
 
-# Array Streams
+# Array Stream Plus
 
 ## Introduction
 
-Tired of how few methods are available for JavaScript arrays? Missing Rust iterators or Elixir enumerables and streams? Well, do I have a solution that is slightly easier.
+Tired of how few methods are available for JavaScript arrays? Missing Rust iterators or Elixir enumerables and streams? Want a package with no dependencies and a small footprint?
 
 ```ts
 function* gen(start: number) {

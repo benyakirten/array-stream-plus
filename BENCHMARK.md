@@ -1,10 +1,10 @@
 # Overview
 
-Benchmarks are an average response time over 1000 measurements with a variable amount of items and variable amount of map and filter operations. Benchmarks are conducted across three browsers (Safari, Chrome and Firefox) and two runtime environments (Node and Bun). Measurements were conducted across Array Streams (this library), Array methods (i.e. `Array.filter` and `Array.map`) and [itertools](https://github.com/nvie/itertools).
+Benchmarks are an average response time over 1000 measurements with a variable amount of items and variable amount of map and filter operations. Benchmarks are conducted across three browsers (Safari, Chrome and Firefox) and two runtime environments (Node and Bun). Measurements were conducted across ArrayStream (this library), Array methods (i.e. `Array.filter` and `Array.map`) and [itertools](https://github.com/nvie/itertools).
 
 -   Amount of items increases along the X axis
 -   Amount of operations increases along the Y axis
--   Execution time is in milliseconds with the first item being Array Streams, the second built-in Array methods and third itertools.
+-   Execution time is in milliseconds with the first item being ArrayStream, the second built-in Array methods and third itertools.
 
 ## Data
 
@@ -70,6 +70,6 @@ Benchmarks are an average response time over 1000 measurements with a variable a
 
 ## Conclusions
 
-In almost all contexts, native methods are better than Array Stream, which in turn is almost always better than itertools. In V8 environments (the majority that you will encounter), the native methods outperform to a significant degree (especially in larger datasets with more operations). No JavaScript package will be able to outperform the native V8 engine because JavaScript-land cannot access the garbage collection and memory optimizations that the engine has access to. We cannot manually collect garbage nor modify an iterator internally, which is probably what costs the Array Stream library its performance. That said, if [iterator adapters](https://github.com/tc39/proposal-iterator-helpers) get added to JavaScript, I may be able to increase performance. One thing to note is that in execution environments that use Webkit (Safari and Bun), the Array Stream library is competitive surprisingly.
+In almost all contexts, native methods are better than ArrayStream, which in turn is almost always better than itertools. In V8 environments (the majority that you will encounter), the native methods outperform to a significant degree (especially in larger datasets with more operations). No JavaScript package will be able to outperform the native V8 engine because JavaScript-land cannot access the garbage collection and memory optimizations that the engine has access to. We cannot manually collect garbage nor modify an iterator internally, which is probably what costs the ArrayStream library its performance. That said, if [iterator adapters](https://github.com/tc39/proposal-iterator-helpers) get added to JavaScript, I may be able to increase performance. One thing to note is that in execution environments that use Webkit (Safari and Bun), the ArrayStream is competitive surprisingly.
 
 My suggestion is that you should use this library if you want a friendly, full-featured iterator library using a builder pattern and want moderately better performance than the itertools library. If performance is critical, I suggest you use a single `for` loop.
