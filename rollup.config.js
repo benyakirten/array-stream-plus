@@ -2,17 +2,17 @@ import typescript from "@rollup/plugin-typescript";
 import { terser } from "rollup-plugin-terser";
 
 export default {
-    input: "src/index.ts", // Entry file
+    input: "src/index.ts",
     output: {
-        file: "dist/bundle.min.js", // Output file
-        format: "esm", // Output format (ES module)
-        sourcemap: true, // Optional: generate sourcemaps
+        file: "dist/bundle.min.js",
+        format: "esm",
+        sourcemap: true,
     },
     plugins: [
         typescript({
-            tsconfig: "./tsconfig.json", // Use your tsconfig.json
-            declaration: true, // Generates .d.ts files
-            declarationDir: "dist/types", // Where to output declaration files
+            tsconfig: "./tsconfig.json",
+            declaration: true,
+            declarationDir: "dist/types",
         }),
         terser(), // Minify the output
     ],

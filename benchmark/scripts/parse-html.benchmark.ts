@@ -104,9 +104,9 @@ function readFile(file: string) {
     for (const row of rows) {
         const results = getLineResults(row);
 
-        const parsedStreamRow = [];
-        const parsedArrayRow = [];
-        const parsedItertoolsRow = [];
+        const parsedStreamRow: number[] = [];
+        const parsedArrayRow: number[] = [];
+        const parsedItertoolsRow: number[] = [];
 
         for (const result of results) {
             parsedStreamRow.push(result[0]);
