@@ -4,7 +4,7 @@
 
 ## Introduction
 
-Tired of how few methods are available for JavaScript arrays? Missing Rust iterators or Elixir enumerables and streams? Want a package with no dependencies and a small footprint?
+Tired of how few methods are available for JavaScript arrays? Missing Rust iterators or Elixir enumerables and streams? Want a package with no dependencies and a small footprint? Test
 
 ```ts
 function* gen(start: number) {
