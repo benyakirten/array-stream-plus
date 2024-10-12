@@ -93,9 +93,7 @@ export class AsyncArrayStream<Input> {
      * any items that return null, false, or undefined from the filterMap function.
      */
     public filterMap<End>(
-        fn: (
-            input: Input
-        ) => MaybeAsyncFn<Input, End | null | false | undefined>
+        fn: MaybeAsyncFn<Input, End | null | false | undefined>
     ): AsyncArrayStream<End> {
         this.ops.push({
             type: "filterMap",

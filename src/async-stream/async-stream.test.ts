@@ -1,32 +1,108 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import { AsyncArrayStream } from "./async-stream";
 
 describe("AsyncArrayStream", () => {
-    it("should map values correctly", async () => {
-        const got = await new AsyncArrayStream([1, 2, 3])
-            .map(async (x) => x * 2)
-            .collect();
-        expect(got).toEqual([2, 4, 6]);
-    });
+    describe("ops", () => {
+        describe("map", () => {
+            it("should map values from one shape to another", async () => {
+                const got = await new AsyncArrayStream([1, 2, 3])
+                    .map(async (x) => x * 2)
+                    .collect();
+                expect(got).toEqual([2, 4, 6]);
+            });
 
-    it("should filter values correctly", async () => {
-        const input = [1, 2, 3, 4];
-        const got = await new AsyncArrayStream(input)
-            .filter(async (x) => x % 2 === 0)
-            .collect();
-        expect(got).toEqual([2, 4]);
-    });
+            it("should funciton correctly with a synchronous map function", async () => {
+                const got = await new AsyncArrayStream([1, 2, 3])
+                    .map((x) => x * 2)
+                    .collect();
+                expect(got).toEqual([2, 4, 6]);
+            });
+        });
 
-    it("should apply forEach correctly", async () => {
-        const input = [1, 2, 3];
-        let sum = 0;
-        await new AsyncArrayStream(input)
-            .forEach(async (x) => {
-                sum += x;
-            })
-            .collect();
-        expect(sum).toBe(6);
+        describe("filter", () => {
+            it("should filter out values that return false in the filter function", async () => {
+                const input = [1, 2, 3, 4];
+                const got = await new AsyncArrayStream(input)
+                    .filter(async (x) => x % 2 === 0)
+                    .collect();
+                expect(got).toEqual([2, 4]);
+            });
+
+            it("should work correctly with a synchronous filter function", async () => {
+                const input = [1, 2, 3, 4];
+                const got = await new AsyncArrayStream(input)
+                    .filter((x) => x % 2 === 0)
+                    .collect();
+                expect(got).toEqual([2, 4]);
+            });
+        });
+
+        describe("forEach", () => {
+            it("should apply a function without mutating the original function", async () => {
+                const input = [1, 2, 3];
+                let sum = 0;
+                const got = await new AsyncArrayStream(input)
+                    .forEach(async (x) => {
+                        sum += x;
+                    })
+                    .collect();
+                expect(sum).toBe(6);
+                expect(got).toEqual([1, 2, 3]);
+            });
+
+            it("should work correctly with a synchronous function", async () => {
+                const input = [1, 2, 3];
+                let sum = 0;
+                const got = await new AsyncArrayStream(input)
+                    .forEach((x) => {
+                        sum += x;
+                    })
+                    .collect();
+                expect(sum).toBe(6);
+                expect(got).toEqual([1, 2, 3]);
+            });
+        });
+
+        describe("filterMap", () => {
+            it("should map an item and filter out the result if it is null, undefined or false", async () => {
+                const input = [1, 2, 3];
+                const got = await new AsyncArrayStream(input)
+                    .filterMap(async (x) => (x % 2 === 0 ? x * 2 : null))
+                    .collect();
+                expect(got).toEqual([4]);
+            });
+
+            it("should work correctly with a synchronous function", async () => {
+                const input = [1, 2, 3];
+                const got = await new AsyncArrayStream(input)
+                    .filterMap((x) => (x % 2 === 0 ? x * 2 : null))
+                    .collect();
+                expect(got).toEqual([4]);
+            });
+        });
+
+        it("should work correctly with multiple ops", async () => {
+            const input = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+            const spy = vi.fn();
+            const got = await new AsyncArrayStream(input)
+                // 2, 4, 6, 8, 10
+                .filter(async (x) => x % 2 === 0)
+                // 4, 8, 12, 16, 20
+                .map(async (x) => x * 2)
+                .forEach((x) => spy(x))
+                // 120
+                .filterMap(async (x) => (x % 3 === 0 ? x * 10 : false))
+                .collect();
+
+            expect(got).toEqual([120]);
+            expect(spy).toHaveBeenCalledTimes(5);
+            expect(spy).toHaveBeenCalledWith(4);
+            expect(spy).toHaveBeenCalledWith(8);
+            expect(spy).toHaveBeenCalledWith(12);
+            expect(spy).toHaveBeenCalledWith(16);
+            expect(spy).toHaveBeenCalledWith(20);
+        });
     });
 
     it("should take the first n items", async () => {
