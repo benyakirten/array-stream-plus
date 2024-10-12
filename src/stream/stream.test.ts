@@ -190,6 +190,22 @@ describe("ArrayStream", () => {
         ]);
     });
 
+    test("zip should work with infinite generators", () => {
+        function* generate() {
+            let i = 0;
+            while (true) {
+                yield i++;
+            }
+        }
+
+        const got = new ArrayStream([1, 2, 3]).zip(generate()).collect();
+        expect(got).toEqual([
+            [1, 0],
+            [2, 1],
+            [3, 2],
+        ]);
+    });
+
     test("intersperse should intersperse a value between each item if it is not a function", () => {
         const got = new ArrayStream([1, 2, 3]).intersperse(0).collect();
         expect(got).toEqual([1, 0, 2, 0, 3]);
@@ -216,6 +232,21 @@ describe("ArrayStream", () => {
         expect(got).toEqual([2, 0, 4]);
     });
 
+    test("intersperse should work with infinite generators", () => {
+        function* generate() {
+            let i = 0;
+            while (true) {
+                yield i++;
+            }
+        }
+
+        const got = new ArrayStream(generate())
+            .intersperse(100)
+            .take(5)
+            .collect();
+        expect(got).toEqual([0, 100, 1, 100, 2]);
+    });
+
     test("enumerate should return a stream of tuples with the index and the item", () => {
         const got = new ArrayStream([100, 200, 300]).enumerate().collect();
         expect(got).toEqual([
@@ -234,6 +265,22 @@ describe("ArrayStream", () => {
         expect(got).toEqual([
             [0, 200],
             [1, 300],
+        ]);
+    });
+
+    test("enumerate should work with infinite streams before a take operation has been performed", () => {
+        function* generate() {
+            let i = 0;
+            while (true) {
+                yield i++;
+            }
+        }
+
+        const got = new ArrayStream(generate()).enumerate().take(3).collect();
+        expect(got).toEqual([
+            [0, 0],
+            [1, 1],
+            [2, 2],
         ]);
     });
 
@@ -258,6 +305,22 @@ describe("ArrayStream", () => {
         expect(got).toEqual([2, 102, 202, 4, 104]);
     });
 
+    test("flatMap should work with infinite streams", () => {
+        function* generate() {
+            let i = 0;
+            while (true) {
+                yield i++;
+            }
+        }
+
+        const got = new ArrayStream(generate())
+            .flatMap((x) => [x, x * 2])
+            .take(5)
+            .collect();
+
+        expect(got).toEqual([0, 0, 1, 2, 2]);
+    });
+
     test("fuse should create an iterator that ends after the first null or undefined", () => {
         const got = new ArrayStream([1, 2, 3, null, 4, 5, 6]).fuse().collect();
         expect(got).toEqual([1, 2, 3]);
@@ -271,6 +334,21 @@ describe("ArrayStream", () => {
             .collect();
 
         expect(got).toEqual([2, 4]);
+    });
+
+    test("fuse should work with infinite generator", () => {
+        function* generate() {
+            let i = 0;
+            while (true) {
+                yield i++;
+            }
+        }
+
+        const got = new ArrayStream(generate())
+            .map((i) => (i == 3 ? null : i))
+            .fuse()
+            .collect();
+        expect(got).toEqual([0, 1, 2]);
     });
 
     // Collectors
