@@ -1,4 +1,4 @@
-import type { Streamable, Op, ItemResult } from "./types";
+import type { Streamable, Op, ItemResult } from "../types";
 
 /**
  * A class for performing a series of operations on a synchronous and iterable source of data.
@@ -97,7 +97,7 @@ export class ArrayStream<Input> {
      * Take the first n items from the iterator that will be resolved when the iterator is finalized.
      */
     public take(n: number): ArrayStream<Input> {
-        const iter = this.transformsAppliedIterator();
+        const iter = this.read();
         function* takeGenerator() {
             for (let i = 0; i < n; i++) {
                 const item = iter.next();
@@ -115,7 +115,7 @@ export class ArrayStream<Input> {
      * Returns a new iterator that will skip the first n items from the iterator.
      */
     public skip(n: number): ArrayStream<Input> {
-        const iter = this.transformsAppliedIterator();
+        const iter = this.read();
         function* skipGenerator() {
             let count = 0;
             while (count < n) {
@@ -135,7 +135,7 @@ export class ArrayStream<Input> {
      * Return a new iterator that will only include items which are divisible by N.
      */
     public stepBy(n: number): ArrayStream<Input> {
-        const iter = this.transformsAppliedIterator();
+        const iter = this.read();
         function* stepByGenerator() {
             let count = 0;
             for (const item of iter) {
@@ -155,7 +155,7 @@ export class ArrayStream<Input> {
     public chain<Stream>(
         stream: Streamable<Stream>
     ): ArrayStream<Input | Stream> {
-        const iter = this.transformsAppliedIterator();
+        const iter = this.read();
 
         function* chainGenerator() {
             yield* iter;
@@ -172,7 +172,7 @@ export class ArrayStream<Input> {
     public intersperse<Item>(
         fnOrItem: Item | (() => Item)
     ): ArrayStream<Input | Item> {
-        const iter = this.transformsAppliedIterator();
+        const iter = this.read();
         function* intersperseGenerator() {
             let item: IteratorResult<Input> | null = null;
             while (true) {
@@ -207,7 +207,7 @@ export class ArrayStream<Input> {
     public zip<Stream>(
         stream: Streamable<Stream>
     ): ArrayStream<[Input, Stream]> {
-        const iter = this.transformsAppliedIterator();
+        const iter = this.read();
         const streamIter = ArrayStream.makeIterator(stream);
         function* zipGenerator() {
             for (const item of iter) {
@@ -227,7 +227,7 @@ export class ArrayStream<Input> {
      * Returns an iterator that will yield its items accompanied by an index.
      */
     public enumerate(): ArrayStream<[number, Input]> {
-        const iter = this.transformsAppliedIterator();
+        const iter = this.read();
         function* enumerateGenerator() {
             let count = 0;
             for (const item of iter) {
@@ -243,7 +243,7 @@ export class ArrayStream<Input> {
      * Returns an iterator that will yield individual items created from the application of the function.
      */
     public flatMap<End>(fn: (input: Input) => End[]): ArrayStream<End> {
-        const iter = this.transformsAppliedIterator();
+        const iter = this.read();
         function* flatMapGenerator() {
             for (const item of iter) {
                 const result = fn(item);
@@ -260,7 +260,7 @@ export class ArrayStream<Input> {
      * Returns an iterator that will exhaust as soon as the iterator yields a null or undefined value.
      */
     public fuse(): ArrayStream<Input> {
-        const iter = this.transformsAppliedIterator();
+        const iter = this.read();
         function* fuseGenerator() {
             for (const item of iter) {
                 if (item === undefined || item === null) {
@@ -288,7 +288,7 @@ export class ArrayStream<Input> {
      */
     public nth(n: number): Input | null {
         let count = 0;
-        for (const item of this.transformsAppliedIterator()) {
+        for (const item of this.read()) {
             if (count === n) {
                 return item;
             }
@@ -306,7 +306,7 @@ export class ArrayStream<Input> {
         initialValue: End
     ): End {
         let result = initialValue;
-        for (const item of this.transformsAppliedIterator()) {
+        for (const item of this.read()) {
             result = op(result, item as unknown as Input);
         }
         return result;
@@ -341,7 +341,7 @@ export class ArrayStream<Input> {
      * It is short circuiting and will only consume the iterator up to the first item that returns true.
      */
     public any(fn: (item: Input) => boolean): boolean {
-        for (const item of this.transformsAppliedIterator()) {
+        for (const item of this.read()) {
             if (fn(item)) {
                 return true;
             }
@@ -356,7 +356,7 @@ export class ArrayStream<Input> {
      * the iterator will not consume all items.
      */
     public all(fn: (item: Input) => boolean): boolean {
-        for (const item of this.transformsAppliedIterator()) {
+        for (const item of this.read()) {
             if (!fn(item)) {
                 return false;
             }
@@ -371,7 +371,7 @@ export class ArrayStream<Input> {
      * The function short circuits on the first item that returns true and will not consume the rest of the iterator.
      */
     public find(fn: (item: Input) => boolean): Input | null {
-        for (const item of this.transformsAppliedIterator()) {
+        for (const item of this.read()) {
             if (fn(item)) {
                 return item;
             }
@@ -387,7 +387,7 @@ export class ArrayStream<Input> {
      */
     public findIndex(fn: (item: Input) => boolean): number {
         let count = 0;
-        for (const item of this.transformsAppliedIterator()) {
+        for (const item of this.read()) {
             if (fn(item)) {
                 return count;
             }
@@ -431,7 +431,7 @@ export class ArrayStream<Input> {
      * NOTE: This will not work correctly for reference values.
      */
     public includes(item: Input): boolean {
-        for (const i of this.transformsAppliedIterator()) {
+        for (const i of this.read()) {
             if (i === item) {
                 return true;
             }
@@ -449,7 +449,7 @@ export class ArrayStream<Input> {
         const left: Input[] = [];
         const right: Input[] = [];
 
-        for (const item of this.transformsAppliedIterator()) {
+        for (const item of this.read()) {
             if (fn(item)) {
                 left.push(item);
             } else {
@@ -464,10 +464,10 @@ export class ArrayStream<Input> {
      * Consume the iterator and run all operations against all items.
      */
     public collect(): Input[] {
-        return [...this.transformsAppliedIterator()];
+        return [...this.read()];
     }
 
-    private *transformsAppliedIterator() {
+    private *read() {
         for (const input of this.input) {
             const item = this.applyTransformations(input);
             if (item.filtered) {
