@@ -4,54 +4,6 @@ import { ArrayStream } from "./stream";
 
 describe("ArrayStream", () => {
     // Operations
-    test("take should return only as many items as designated", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            .take(3)
-            .collect();
-        expect(got).toEqual([1, 2, 3]);
-    });
-
-    test("take should return all items if the limit is higher than the number of items", () => {
-        const got = new ArrayStream([1, 2]).take(3).collect();
-        expect(got).toEqual([1, 2]);
-    });
-
-    test("take should take 0 items if the limit is 0", () => {
-        const got = new ArrayStream([1, 2, 3]).take(0).collect();
-        expect(got).toEqual([]);
-    });
-
-    test("take should respect filters that have been previously applied in counting the items to take", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            .filter((x) => x % 2 === 0)
-            .take(3)
-            .collect();
-        expect(got).toEqual([2, 4, 6]);
-    });
-
-    test("take should take a fixed number of items from a generator that will generate infinite items", () => {
-        function* generate() {
-            let i = 0;
-            while (true) {
-                yield i++;
-            }
-        }
-
-        const got = new ArrayStream(generate()).take(5).collect();
-
-        expect(got).toEqual([0, 1, 2, 3, 4]);
-    });
-
-    test("take should continue to perform operations as expected after the limit has been reached", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            .filter((x) => x % 2 === 0)
-            .take(5)
-            .map((x) => ({ value: x * 2 }))
-            .take(3)
-            .collect();
-        expect(got).toEqual([{ value: 4 }, { value: 8 }, { value: 12 }]);
-    });
-
     test("foreach should call the function for each item in the stream", () => {
         let i = 0;
         const got = new ArrayStream([1, 2, 3])
@@ -84,6 +36,7 @@ describe("ArrayStream", () => {
         expect(got).toEqual([4, 8, 12]);
     });
 
+    // Iterator adapters
     test("stepBy should return every nth item", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
             .stepBy(3)
@@ -134,7 +87,54 @@ describe("ArrayStream", () => {
         expect(got).toEqual([{ x: 14 }, { x: 18 }]);
     });
 
-    // Methods that return a new iterator
+    test("take should return only as many items as designated", () => {
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            .take(3)
+            .collect();
+        expect(got).toEqual([1, 2, 3]);
+    });
+
+    test("take should return all items if the limit is higher than the number of items", () => {
+        const got = new ArrayStream([1, 2]).take(3).collect();
+        expect(got).toEqual([1, 2]);
+    });
+
+    test("take should take 0 items if the limit is 0", () => {
+        const got = new ArrayStream([1, 2, 3]).take(0).collect();
+        expect(got).toEqual([]);
+    });
+
+    test("take should respect filters that have been previously applied in counting the items to take", () => {
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            .filter((x) => x % 2 === 0)
+            .take(3)
+            .collect();
+        expect(got).toEqual([2, 4, 6]);
+    });
+
+    test("take should take a fixed number of items from a generator that will generate infinite items", () => {
+        function* generate() {
+            let i = 0;
+            while (true) {
+                yield i++;
+            }
+        }
+
+        const got = new ArrayStream(generate()).take(5).collect();
+
+        expect(got).toEqual([0, 1, 2, 3, 4]);
+    });
+
+    test("take should continue to perform operations as expected after the limit has been reached", () => {
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            .filter((x) => x % 2 === 0)
+            .take(5)
+            .map((x) => ({ value: x * 2 }))
+            .take(3)
+            .collect();
+        expect(got).toEqual([{ value: 4 }, { value: 8 }, { value: 12 }]);
+    });
+
     test("chain should append one stream to the end of the other", () => {
         const got = new ArrayStream([1, 2, 3]).chain([4, 5, 6]).collect();
 
@@ -351,7 +351,7 @@ describe("ArrayStream", () => {
         expect(got).toEqual([0, 1, 2]);
     });
 
-    // Collectors
+    // Finalizer
     test("count should count the remaining items after all operations have been performed", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14])
             // 2, 4, 6, 8, 10, 12, 14
@@ -617,5 +617,16 @@ describe("ArrayStream", () => {
         }, []);
 
         expect(got).toEqual([{ val: 4 }, { val: 3 }]);
+    });
+
+    test("collectors should continue if they are nto greedy", () => {
+        const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+        const gotIndex = stream.findIndex((x) => x === 5);
+        const gotLen = stream.count();
+
+        // Iterator has exhausted up to 5 so it will then iterate through 6, 7, 8 then 9
+        expect(gotIndex).toEqual(4);
+        expect(gotLen).toEqual(4);
     });
 });

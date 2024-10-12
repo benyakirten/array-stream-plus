@@ -274,7 +274,7 @@ export class ArrayStream<Input> {
         return new ArrayStream(fuseGenerator(), []);
     }
 
-    // Methods that collect the iterator
+    // Finalizer methods
     /**
      * Consume the iteraor and return however many items it contains.
      */
