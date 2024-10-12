@@ -1,7 +1,6 @@
 import type {
     AsyncStreamable,
     AsyncOp,
-    AsyncOpFn,
     ItemResult,
     MaybeAsyncFn,
 } from "../types";
@@ -39,7 +38,7 @@ export class AsyncArrayStream<Input> {
      * A map operation takes an iterator of type A and returns an iterator of type B. A map function
      * is different from forEach in that it should be pure and not have side effects.
      */
-    public map<End>(fn: AsyncOpFn<End>): AsyncArrayStream<End> {
+    public map<End>(fn: MaybeAsyncFn<Input, End>): AsyncArrayStream<End> {
         this.ops.push({
             type: "map",
             op: fn as AsyncOp["op"],
@@ -52,7 +51,7 @@ export class AsyncArrayStream<Input> {
      * A filter operation takes an iterator of type A and returns an iterator of type A but removes
      * all items that do not return true from the filter function.
      */
-    public filter(fn: AsyncOpFn<boolean>): AsyncArrayStream<Input> {
+    public filter(fn: MaybeAsyncFn<Input, boolean>): AsyncArrayStream<Input> {
         this.ops.push({
             type: "filter",
             op: fn as AsyncOp["op"],
@@ -65,7 +64,9 @@ export class AsyncArrayStream<Input> {
      * A forEach operation takes an iterator of type A and returns nothing. A forEach function should
      * be impure and cause side effects.
      */
-    public forEach(fn: AsyncOpFn<void | unknown>): AsyncArrayStream<Input> {
+    public forEach(
+        fn: MaybeAsyncFn<Input, void | unknown>
+    ): AsyncArrayStream<Input> {
         this.ops.push({
             type: "foreach",
             op: fn as AsyncOp["op"],
@@ -76,7 +77,9 @@ export class AsyncArrayStream<Input> {
     /**
      * A forEach operation that is used for debugging purposes.
      */
-    public inspect(fn: AsyncOpFn<void | unknown>): AsyncArrayStream<Input> {
+    public inspect(
+        fn: MaybeAsyncFn<Input, void | unknown>
+    ): AsyncArrayStream<Input> {
         this.ops.push({
             type: "foreach",
             op: fn as AsyncOp["op"],
@@ -90,7 +93,9 @@ export class AsyncArrayStream<Input> {
      * any items that return null, false, or undefined from the filterMap function.
      */
     public filterMap<End>(
-        fn: (input: Input) => AsyncOpFn<End | null | false | undefined>
+        fn: (
+            input: Input
+        ) => MaybeAsyncFn<Input, End | null | false | undefined>
     ): AsyncArrayStream<End> {
         this.ops.push({
             type: "filterMap",
@@ -477,7 +482,7 @@ export class AsyncArrayStream<Input> {
 
     public async collect(): Promise<Input[]> {
         const result: Input[] = [];
-        for await (const item of this.input) {
+        for await (const item of this.read()) {
             result.push(item);
         }
 

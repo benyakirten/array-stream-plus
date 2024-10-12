@@ -3,7 +3,6 @@ export type AsyncOp = {
     op: MaybeAsyncFn<unknown, unknown>;
 };
 export type AsyncStreamable<Input> = Input[] | AsyncIterableIterator<Input>;
-export type AsyncOpFn<T> = MaybeAsyncFn<unknown, T>;
 export type MaybeAsyncFn<Input, Output> = (
     input: Input
 ) => Promise<Output> | Output;
