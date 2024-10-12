@@ -321,12 +321,12 @@ export class AsyncArrayStream<Input> {
      * Consume the iterator and collect all items into the chosen data structure starting from the first item.
      */
     public async reduce<End>(
-        op: (acc: End, next: Input) => End,
+        op: (acc: End, next: Input) => End | Promise<End>,
         initialValue: End
     ): Promise<End> {
         let result = initialValue;
         for await (const item of this.read()) {
-            result = op(result, item as unknown as Input);
+            result = await op(result, item as unknown as Input);
         }
         return result;
     }
@@ -335,7 +335,7 @@ export class AsyncArrayStream<Input> {
      * Consume the iterator and collect all items into the chosen data structure starting from the last item.
      */
     public async reduceRight<End>(
-        op: (acc: End, next: Input) => End,
+        op: (acc: End, next: Input) => End | Promise<End>,
         initialValue: End
     ): Promise<End> {
         const intermediate = await this.collect();
@@ -343,7 +343,7 @@ export class AsyncArrayStream<Input> {
         let result = initialValue;
         for (let i = intermediate.length - 1; i >= 0; i--) {
             const item = intermediate[i];
-            result = op(result, item as unknown as Input);
+            result = await op(result, item as unknown as Input);
         }
         return result;
     }
@@ -362,9 +362,9 @@ export class AsyncArrayStream<Input> {
      * Consume the iterator and return a boolean if any item causes the function to return true.
      * It is short circuiting and will return as any item returns true;
      */
-    public async any(fn: (item: Input) => boolean): Promise<boolean> {
+    public async any(fn: MaybeAsyncFn<Input, boolean>): Promise<boolean> {
         for await (const item of this.read()) {
-            if (fn(item)) {
+            if (await fn(item)) {
                 return true;
             }
         }
@@ -376,9 +376,9 @@ export class AsyncArrayStream<Input> {
      * Consume the iterator and return a boolean if all the items cause the function to return true.
      * It is short circuiting and will return as any item returns false;
      */
-    public async all(fn: (item: Input) => boolean): Promise<boolean> {
+    public async all(fn: MaybeAsyncFn<Input, boolean>): Promise<boolean> {
         for await (const item of this.read()) {
-            if (!fn(item)) {
+            if (!(await fn(item))) {
                 return false;
             }
         }
@@ -389,9 +389,9 @@ export class AsyncArrayStream<Input> {
     /**
      * Consume the iterator and return the first item that causes the function to return true.
      */
-    public async find(fn: (item: Input) => boolean): Promise<Input | null> {
+    public async find(fn: MaybeAsyncFn<Input, boolean>): Promise<Input | null> {
         for await (const item of this.read()) {
-            if (fn(item)) {
+            if (await fn(item)) {
                 return item;
             }
         }
@@ -402,10 +402,10 @@ export class AsyncArrayStream<Input> {
     /**
      * Consume the iterator and return the index of the first item in the array that causes the function to return true.
      */
-    public async findIndex(fn: (item: Input) => boolean): Promise<number> {
+    public async findIndex(fn: MaybeAsyncFn<Input, boolean>): Promise<number> {
         let count = 0;
         for await (const item of this.read()) {
-            if (fn(item)) {
+            if (await fn(item)) {
                 return count;
             }
 
@@ -418,10 +418,12 @@ export class AsyncArrayStream<Input> {
     /**
      * Consume the iterator and return the first item from the end of the array that causes the function to return true.
      */
-    public async findLast(fn: (item: Input) => boolean): Promise<Input | null> {
+    public async findLast(
+        fn: MaybeAsyncFn<Input, boolean>
+    ): Promise<Input | null> {
         const items = await this.collect();
         for (let i = items.length - 1; i >= 0; i--) {
-            if (fn(items[i])) {
+            if (await fn(items[i])) {
                 return items[i];
             }
         }
@@ -432,10 +434,12 @@ export class AsyncArrayStream<Input> {
     /*
      * Consume the iterator and return the index of the first item from the end of the array that causes the function to return true.
      */
-    public async findLastIndex(fn: (item: Input) => boolean): Promise<number> {
+    public async findLastIndex(
+        fn: MaybeAsyncFn<Input, boolean>
+    ): Promise<number> {
         const items = await this.collect();
         for (let i = items.length - 1; i >= 0; i--) {
-            if (fn(items[i])) {
+            if (await fn(items[i])) {
                 return i;
             }
         }
@@ -468,7 +472,7 @@ export class AsyncArrayStream<Input> {
         const right: Input[] = [];
 
         for await (const item of this.read()) {
-            if (fn(item)) {
+            if (await fn(item)) {
                 left.push(item);
             } else {
                 right.push(item);
