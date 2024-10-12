@@ -5,7 +5,7 @@
     "files": [
         "dist"
     ],
-    "version": "0.1.1",
+    "version": "0.1.2",
     "author": "Ben Horowitz <benyakir.horowitz@gmail.com> (https://benyakir-writes.com)",
     "keywords": [
         "array",

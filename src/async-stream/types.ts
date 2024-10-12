@@ -1,13 +1,8 @@
-export type AsyncOp = AsyncFuncOp | AsyncNumericOp;
-
-export type AsyncNumericOp = {
-    type: "take" | "skip";
-    count: number;
-};
+export type AsyncOp = AsyncFuncOp;
 
 export type AsyncFuncOp = {
     type: "map" | "filter" | "foreach" | "filterMap";
-    op: (input: unknown) => Promise<unknown> | unknown;
+    op: AsyncFn<unknown>;
 };
 export type AsyncFn<T> = (input: unknown) => Promise<T> | T;
 

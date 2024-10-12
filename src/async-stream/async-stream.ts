@@ -1,10 +1,5 @@
 import type { AsyncStreamable, AsyncOp, AsyncFuncOp, AsyncFn } from "./types";
 
-/**
- * A class for performing a series of operations on a synchronous and iterable source of data.
- * It aims to have a similar set of features as baseline Rust iterator and outperform the native
- * JavaScript array methods when chained together.
- */
 export class AsyncArrayStream<Input> {
     private input: AsyncIterableIterator<Input>;
     constructor(
@@ -101,22 +96,48 @@ export class AsyncArrayStream<Input> {
     /**
      * Take the first n items from the iterator that will be resolved when the iterator is finalized.
      */
-    public take(limit: number): AsyncArrayStream<Input> {
-        this.ops.push({
-            type: "take",
-            count: limit,
-        });
-        return this;
+    public take(limit: number): AsyncArrayStream<Input[]> {
+        const gen = this.input;
+        async function* newGenerator() {
+            let count = 0;
+            let collection: Input[] = [];
+            for await (const item of gen) {
+                if (count >= limit) {
+                    yield collection;
+                    collection = [];
+                    count = 0;
+                } else {
+                    collection.push(item);
+                    count++;
+                }
+            }
+
+            yield collection;
+        }
+
+        return new AsyncArrayStream(newGenerator(), this.ops);
     }
 
     /**
-     * Drop the first n items from the iterator that will be resolved when the iterator is finalized.
+     * Wrap the current iterator to return the first n items from the iterator.
      */
     public skip(n: number): AsyncArrayStream<Input> {
-        this.ops.push({
-            type: "skip",
-            count: n,
-        });
+        const gen = this.input;
+        async function* newGenerator() {
+            let count = 0;
+
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
+            for await (const _item of gen) {
+                if (count >= n) {
+                    break;
+                }
+                count++;
+            }
+
+            yield* gen;
+        }
+
+        this.input = newGenerator();
         return this;
     }
 
@@ -126,10 +147,10 @@ export class AsyncArrayStream<Input> {
      * Return a new iterator that will only include items which are divisible by N.
      */
     public stepBy(n: number): AsyncArrayStream<Input> {
-        const input = await this.collect();
+        const gen = this.input;
         async function* stepByGenerator() {
             let iter = 0;
-            for (const item of input) {
+            for await (const item of gen) {
                 if (iter % n === 0) {
                     yield item;
                 }
@@ -144,21 +165,27 @@ export class AsyncArrayStream<Input> {
      * Return a new iterator that appends the parameter stream to the current stream.
      */
     public chain<Stream>(
-        stream: Streamable<Stream>
-    ): ArrayStream<Input | Stream> {
-        const input = this.collect();
+        stream: AsyncStreamable<Stream>
+    ): AsyncArrayStream<Input | Stream> {
+        const gen = this.input;
+        const streamGen = AsyncArrayStream.makeIterator(stream);
 
-        function* chainGenerator() {
-            for (const item of input) {
-                yield item;
-            }
+        async function* chainGenerator() {
+            while (true) {
+                const item = await gen.next();
+                if (item.done) {
+                    break;
+                }
+                yield item.value;
 
-            for (const item of stream) {
-                yield item;
+                const streamItem = await streamGen.next();
+                if (streamItem.done) {
+                    break;
+                }
             }
         }
 
-        return new ArrayStream(chainGenerator(), []);
+        return new AsyncArrayStream(chainGenerator(), []);
     }
 
     /**
@@ -166,38 +193,28 @@ export class AsyncArrayStream<Input> {
      * The item can be a value of a function that returns the value.
      */
     public intersperse<Item>(
-        fnOrItem: Item | (() => Item)
-    ): ArrayStream<Input | Item> {
-        const input = this.collect();
-        const _input = ArrayStream.makeIterator(input);
+        fnOrItem: Item | (() => Promise<Item> | Item)
+    ): AsyncArrayStream<Input | Item> {
+        const gen = this.input;
 
-        function* intersperseGenerator() {
-            let count = 0;
+        async function* intersperseGenerator() {
             while (true) {
-                const item = _input.next();
+                const item = await gen.next();
                 yield item.value;
 
-                if (
-                    item.done ||
-                    // Iterators created by arrays will have .done = true after they have gone through every item
-                    // and not when they're on the last item - but intersperse puts them between items, not after each
-                    // Therefore we have to add a special check for arrays since they will iterate specially
-                    (Array.isArray(input) && count == input.length - 1)
-                ) {
+                if (item.done) {
                     break;
                 }
 
                 const intersperseItem =
                     typeof fnOrItem === "function"
-                        ? (fnOrItem as () => Item)()
+                        ? await (fnOrItem as () => Item)()
                         : fnOrItem;
                 yield intersperseItem;
-
-                count++;
             }
         }
 
-        return new ArrayStream(intersperseGenerator(), []);
+        return new AsyncArrayStream(intersperseGenerator(), []);
     }
 
     /**
@@ -206,64 +223,73 @@ export class AsyncArrayStream<Input> {
      * as either data source is exhausted.
      */
     public zip<Stream>(
-        stream: Streamable<Stream>
-    ): ArrayStream<[Input, Stream]> {
-        const input = this.collect();
+        stream: AsyncStreamable<Stream>
+    ): AsyncArrayStream<[Input, Stream]> {
+        const gen = this.input;
+        const streamGen = AsyncArrayStream.makeIterator(stream);
 
-        function* zipGenerator() {
-            const streamIter = ArrayStream.makeIterator(stream);
-            for (const item of input) {
-                const streamItem = streamIter.next();
-                if (streamItem.done) {
+        async function* zipGenerator() {
+            while (true) {
+                const nextItem = await gen.next();
+                yield nextItem.value;
+                if (nextItem.done) {
                     break;
                 }
 
-                yield [item, streamItem.value] as [Input, Stream];
+                const nextStreamItem = await streamGen.next();
+                yield nextStreamItem.value;
+                if (nextStreamItem.done) {
+                    break;
+                }
             }
         }
 
-        return new ArrayStream(zipGenerator(), []);
+        return new AsyncArrayStream(zipGenerator(), []);
     }
 
     /**
      * Returns an iterator that will yield its items accompanied by an index.
      */
-    public enumerate(): ArrayStream<[number, Input]> {
-        const input = this.collect();
-        function* enumerateGenerator() {
-            for (let i = 0; i < input.length; i++) {
-                yield [i, input[i]] as [number, Input];
+    public enumerate(): AsyncArrayStream<[number, Input]> {
+        const gen = this.input;
+        async function* enumerateGenerator() {
+            let count = 0;
+            for await (const item of gen) {
+                yield [count, item] as [number, Input];
+                count++;
             }
         }
 
-        return new ArrayStream(enumerateGenerator(), []);
+        return new AsyncArrayStream(enumerateGenerator(), []);
     }
 
     // TODO: Find a more efficient way to implement this than to collect the iterator
     /**
      * Returns an iterator that will yield individual items created from the application of the function.
      */
-    public flatMap<End>(fn: (input: Input) => End[]): ArrayStream<End> {
-        const input = this.collect();
-        function* flatMapGenerator() {
-            for (const item of input) {
-                const result = fn(item);
+    public flatMap<End>(
+        fn: (input: Input) => End[] | Promise<End[]>
+    ): AsyncArrayStream<End> {
+        const gen = this.input;
+        async function* flatMapGenerator() {
+            for await (const item of gen) {
+                const result = await fn(item);
                 for (const r of result) {
                     yield r;
                 }
             }
         }
 
-        return new ArrayStream(flatMapGenerator(), []);
+        return new AsyncArrayStream(flatMapGenerator(), []);
     }
 
     /**
      * Returns an iterator that will exhaust as soon as the iterator yields a null or undefined value.
      */
-    public fuse(): ArrayStream<Input> {
-        const input = this.collect();
-        function* fuseGenerator() {
-            for (const item of input) {
+    public fuse(): AsyncArrayStream<Input> {
+        const gen = this.input;
+        async function* fuseGenerator() {
+            for await (const item of gen) {
                 if (item === undefined || item === null) {
                     break;
                 }
@@ -272,24 +298,34 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new ArrayStream(fuseGenerator(), []);
+        return new AsyncArrayStream(fuseGenerator(), []);
     }
 
     // Methods that collect the iterator
     /**
-     * Consume the iteartor and return however many items it contains.
+     * Consume the iterator and return however many items it contains.
      */
-    public count(): number {
-        return this.collect().length;
+    public async count(): Promise<number> {
+        let count = 0;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for await (const _item of this.input) {
+            count++;
+        }
+
+        return count;
     }
 
     /**
      * Consume the iterator and return the item at the nth index (or null if it doesn't exist).
      */
-    public nth(n: number): Input | null {
-        const items = this.collect();
-        if (n < items.length) {
-            return items[n];
+    public async nth(n: number): Promise<Input | null> {
+        let count = 0;
+        for await (const item of this.input) {
+            if (count == n) {
+                return item;
+            }
+
+            count++;
         }
 
         return null;
@@ -298,14 +334,12 @@ export class AsyncArrayStream<Input> {
     /**
      * Consume the iterator and collect all items into the chosen data structure starting from the first item.
      */
-    public reduce<End>(
+    public async reduce<End>(
         op: (acc: End, next: Input) => End,
         initialValue: End
     ): End {
-        const intermediate = this.collect();
-
         let result = initialValue;
-        for (const item of intermediate) {
+        for await (const item of this.input) {
             result = op(result, item as unknown as Input);
         }
         return result;
@@ -314,7 +348,7 @@ export class AsyncArrayStream<Input> {
     /**
      * Consume the iterator and collect all items into the chosen data structure starting from the last item.
      */
-    public reduceRight<End>(
+    public async reduceRight<End>(
         op: (acc: End, next: Input) => End,
         initialValue: End
     ): End {
@@ -454,71 +488,41 @@ export class AsyncArrayStream<Input> {
         return [left, right];
     }
 
-    /**
-     * Consume the iterator and run all operations against all items.
-     */
-    public collect(): Input[] {
-        const intermediate: unknown[] = [];
-        let count: number = 0;
-
-        outer_loop: for (const input of this.input) {
-            let item = input;
-            let result;
-
-            for (let i = 0; i < this.ops.length; i++) {
-                const op = this.ops[i];
-
+    public async *read(): AsyncIterableIterator<Input> {
+        item_loop: for await (const item of this.input) {
+            let _item = item;
+            for (const op of this.ops) {
+                let result;
                 switch (op.type) {
-                    case "skip":
-                        // Though this doesn't make much sense for the inner loop,
-                        // the other solution I had would have it run through all iterations
-                        // then skip items. This seemed the most efficient.
-                        // TODO: Consider how to put this in a better place while maintaining efficiency
-                        for (let i = 0; i < op.count - 1; i++) {
-                            this.input.next();
-                        }
-                        this.ops.splice(i, 1);
-                        continue outer_loop;
-                    case "take":
-                        if (count >= op.count) {
-                            return new ArrayStream(
-                                intermediate,
-                                // i is 0-indexed and we want to skip ahead
-                                this.ops.slice(i + 2)
-                            ).collect() as Input[];
-                        }
-                        break;
                     case "filter":
-                        if (op.op(item) === false) {
-                            continue outer_loop;
+                        if (!(await op.op(item))) {
+                            continue item_loop;
                         }
                         break;
                     case "map":
-                        item = op.op(item) as Input;
+                        // @ts-expect-error: This is a valid operation
+                        _item = await op.op(_item);
                         break;
                     case "foreach":
-                        op.op(item);
+                        await op.op(_item);
                         break;
                     case "filterMap":
-                        result = op.op(item);
+                        result = await op.op(_item);
                         if (
                             result === null ||
                             result === false ||
                             result === undefined
                         ) {
-                            continue outer_loop;
+                            continue item_loop;
                         }
-                        item = result as Input;
+                        // @ts-expect-error: This is a valid operation
+                        _item = result;
                         break;
                     default:
                         break;
                 }
             }
-
-            intermediate.push(item);
-            count++;
+            yield _item;
         }
-
-        return intermediate as Input[];
     }
 }

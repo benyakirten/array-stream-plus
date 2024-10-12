@@ -247,12 +247,15 @@ describe("ArrayStream", () => {
 
     test("flatMap should work with other operators", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9])
+            // 2, 4, 6, 8
             .filter((x) => x % 2 === 0)
-            .flatMap((x) => [x, x * 2, x * 3])
+            // 2, 102, 202, 4, 104, 204, 6, 106, 206, 8, 108, 208
+            .flatMap((x) => [x, x + 100, x + 200])
+            // 2, 102, 202, 4, 104
             .take(5)
             .collect();
 
-        expect(got).toEqual([2, 4, 6, 4, 8]);
+        expect(got).toEqual([2, 102, 202, 4, 104]);
     });
 
     test("fuse should create an iterator that ends after the first null or undefined", () => {
