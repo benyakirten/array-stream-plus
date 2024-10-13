@@ -526,4 +526,30 @@ describe("AsyncArrayStream", () => {
         const result = await stream.collect();
         expect(result).toEqual(["First response", "Second response"]);
     });
+
+    it("should be able to process multiple ops from an infinite generator", async () => {
+        async function* gen() {
+            let i = 0;
+            while (true) {
+                yield i++;
+            }
+        }
+
+        const got = await new AsyncArrayStream(gen())
+            // 2, 4, 6, 8, ...
+            .map(async (x) => x * 2)
+            // 6, 12, 18, 24, ...
+            .filter(async (x) => x % 3 === 0)
+            // [0, 0], [1, 6], [2, 12], [3, 18], ...
+            .enumerate()
+            // [3, 18], [4, 24], ...
+            .skip(3)
+            // [3, 18], [4, 24], [5, 30], [6, 36], [7, 42]
+            .take(5)
+            // [3, 18, 4, 24, 5, 30, 6, 36, 7, 42]
+            .flatMap(async ([x, y]) => [x, y])
+            .collect();
+
+        expect(got).toEqual([3, 18, 4, 24, 5, 30, 6, 36, 7, 42]);
+    });
 });
