@@ -64,6 +64,8 @@ document.querySelector(".load-more").addEventListener("click", async () => {
 });
 ```
 
+More complete docs can be seen on the [GitHub Pages](https://benyakirten.github.io/array-stream-plus/).
+
 ## Benchmarks
 
 A writeup of benchmarks is available [here](./BENCHMARK.md). The conclusion: use native array methods if you like functional programming and care about performance.
