@@ -3,9 +3,9 @@
 
 # Array Stream Plus
 
-## Introduction
+## The Array Stream
 
-Tired of how few methods are available for JavaScript arrays? Missing Rust iterators or Elixir enumerables and streams? Want a package with no dependencies and a small footprint. It's 1kb gzipped and minified. If you're wondering why NPM is saying 37kb, it's for the source map and types, which you hopefully won't be shipping to clients.
+Tired of how few methods are available for JavaScript arrays? Missing Rust iterators or Elixir enumerables and streams? Want a package with no dependencies and a small footprint. It's 1.5kb gzipped and minified (and it's tree shakeable too!). If you're wondering why NPM is saying more, it's for the source map and types, which you hopefully won't be shipping to clients.
 
 ```ts
 function* gen(start: number) {
@@ -43,3 +43,18 @@ A writeup of benchmarks is available [here](./BENCHMARK.md). The conclusion: use
 ## Contributing
 
 I would be overjoyed if anyone wanted to contribute! Please check out the [Contribution Guide](./CONTRIBUTING.md) to get started.
+
+## Changelog
+
+### 0.1.12
+
+-   Add async array stream
+-   Fix package publishing CI.
+
+### 0.1.1
+
+-   Fix some details in the readme and the uploaded binary on GitHub
+
+### 0.1.0
+
+-   Add array stream

@@ -4,7 +4,7 @@ import { terser } from "rollup-plugin-terser";
 export default {
     input: "src/index.ts",
     output: {
-        file: "dist/bundle.min.js",
+        file: "dist/index.js",
         format: "esm",
         sourcemap: true,
     },
