@@ -24,7 +24,12 @@ export class AsyncArrayStream<Input> {
             const promiseGenerator = input.promise;
             async function* gen() {
                 while (true) {
-                    yield await promiseGenerator();
+                    const item = await promiseGenerator();
+                    if (item === null || item === undefined) {
+                        break;
+                    }
+
+                    yield item;
                 }
             }
             return gen();

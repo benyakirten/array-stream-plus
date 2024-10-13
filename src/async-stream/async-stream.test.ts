@@ -509,4 +509,25 @@ describe("AsyncArrayStream", () => {
             expect(result).toEqual({ done: true, value: undefined });
         });
     });
+
+    it("should be able to process a promise generator", async () => {
+        type MockResponse = { ok: boolean; resp?: string };
+        const spy = vi.fn();
+        spy.mockResolvedValueOnce({ ok: true, resp: "First response" });
+        spy.mockResolvedValueOnce({ ok: true, resp: "Second response" });
+        spy.mockResolvedValueOnce({ ok: false });
+
+        const mapper = (x: MockResponse) =>
+            Promise.resolve(x.resp ?? "No response");
+        const stream = new AsyncArrayStream<MockResponse>({
+            promise: spy,
+        }).map(mapper);
+
+        const result = await stream.collect();
+        expect(result).toEqual([
+            "First response",
+            "Second response",
+            "No response",
+        ]);
+    });
 });
