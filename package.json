@@ -1,11 +1,11 @@
 {
     "name": "array-stream-plus",
-    "main": "dist/bundle.min.js",
+    "main": "dist/index.js",
     "types": "dist/types/index.d.ts",
     "files": [
         "dist"
     ],
-    "version": "0.1.2",
+    "version": "0.2.0",
     "author": "Ben Horowitz <benyakir.horowitz@gmail.com> (https://benyakir-writes.com)",
     "keywords": [
         "array",
@@ -44,7 +44,7 @@
         "typescript": "^5.6.2"
     },
     "scripts": {
-        "build": "rimraf dist && rollup -c -m",
+        "build": "rimraf dist && rollup -c -m && cp ./dist/index.js ./compiled.js",
         "format:check": "prettier src/**/*.ts --check",
         "format:fix": "prettier src/**/*.ts --write",
         "lint:check": "eslint src/**/*.ts",
