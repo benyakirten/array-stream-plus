@@ -1,18 +1,27 @@
 name: Trigger Docs Deployment
 
-on:
-  release:
-    types: [created]
+on: [push]
+  # release:
+  #   types: [created]
 
 jobs:
-  trigger:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-      - name: Trigger docs deployment
-        run: |
-          curl -X POST \
-            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/benyakirten/array-stream-plus.github.io/dispatches \
-            -d '{"event_type":"trigger-docs-deploy"}'
+      - uses: actions/checkout@v3
+      - name: install bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - name: install dependencies
+        run: bun install
+      - name: build docs
+        run: bun docs
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
