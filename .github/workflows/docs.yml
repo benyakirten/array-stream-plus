@@ -1,8 +1,8 @@
 name: Trigger Docs Deployment
 
-on: [push]
-  # release:
-  #   types: [created]
+on:
+  release:
+    types: [created]
 
 permissions:
   contents: read
