@@ -223,6 +223,14 @@ describe("ArrayStream", () => {
         expect(i).toEqual(2);
     });
 
+    test("intersperse should call the funciton with the iterated item if it is a function", () => {
+        const got = new ArrayStream([1, 2, 3])
+            .intersperse((x) => x + 100)
+            .collect();
+
+        expect(got).toEqual([1, 101, 2, 102, 3]);
+    });
+
     test("intersperse should work correctly with other operations", () => {
         const got = new ArrayStream([1, 2, 3, 4])
             .filter((x) => x % 2 === 0)

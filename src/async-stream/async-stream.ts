@@ -13,7 +13,7 @@ import type {
  *
  * An example of how this might be used with a fetch request with the promise generator.
  * ```ts
- * let pageToken: string | null = 0;
+ * let pageToken: string | null = null;
  * async function generatePromise(): Promise<Item[] | null> {
  *   const response = await fetch("my-external-api", { page_size: 50, page_token: pageToken }) as { ok: boolean, items: Item[], page_token: string };
  *   if (response.ok) {
@@ -30,17 +30,20 @@ import type {
  *    const next = await stream.read().next();
  *    if (!next.done && next.value) {
  *       items = items.concat(next.value);
- *       rerenderList(items)
+ *       renderList(items)
  *    }
  * })
  * ```
  */
 export class AsyncArrayStream<Input> {
     private input: AsyncIterableIterator<Input>;
-    constructor(
-        input: AsyncStreamable<Input>,
-        private ops: AsyncOp[] = []
-    ) {
+    private ops: AsyncOp[] = [];
+
+    /**
+     * Input can be an array, an async iterable or a promise generator. If the promise generator returns
+     * `null` when the function si called, the iterator will be considered exhausted.
+     */
+    constructor(input: AsyncStreamable<Input>) {
         this.input = AsyncArrayStream.makeIterator(input);
     }
 
@@ -173,7 +176,7 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(newGenerator(), []);
+        return new AsyncArrayStream(newGenerator());
     }
 
     /**
@@ -196,7 +199,7 @@ export class AsyncArrayStream<Input> {
             yield* gen;
         }
 
-        return new AsyncArrayStream(newGenerator(), []);
+        return new AsyncArrayStream(newGenerator());
     }
 
     /**
@@ -218,7 +221,7 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(stepByGenerator(), []);
+        return new AsyncArrayStream(stepByGenerator());
     }
 
     /**
@@ -239,7 +242,7 @@ export class AsyncArrayStream<Input> {
             yield* streamGen;
         }
 
-        return new AsyncArrayStream(chainGenerator(), []);
+        return new AsyncArrayStream(chainGenerator());
     }
 
     /**
@@ -251,7 +254,7 @@ export class AsyncArrayStream<Input> {
      * ```
      */
     public intersperse<Item>(
-        fnOrItem: Item | (() => Promise<Item> | Item)
+        fnOrItem: Item | ((item: Input) => Promise<Item> | Item)
     ): AsyncArrayStream<Input | Item> {
         const iter = this.input;
 
@@ -272,12 +275,14 @@ export class AsyncArrayStream<Input> {
 
                 const intersperseItem =
                     typeof fnOrItem === "function"
-                        ? await (fnOrItem as MaybeAsyncFn<void, Item>)()
+                        ? await (fnOrItem as MaybeAsyncFn<Input, Item>)(
+                              current.value
+                          )
                         : fnOrItem;
                 yield intersperseItem;
             }
         }
-        return new AsyncArrayStream(intersperseGenerator(), []);
+        return new AsyncArrayStream(intersperseGenerator());
     }
 
     /**
@@ -307,7 +312,7 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(zipGenerator(), []);
+        return new AsyncArrayStream(zipGenerator());
     }
 
     /**
@@ -327,7 +332,7 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(enumerateGenerator(), []);
+        return new AsyncArrayStream(enumerateGenerator());
     }
 
     /**
@@ -348,7 +353,7 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(flatMapGenerator(), []);
+        return new AsyncArrayStream(flatMapGenerator());
     }
 
     /**
@@ -370,7 +375,7 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(fuseGenerator(), []);
+        return new AsyncArrayStream(fuseGenerator());
     }
 
     // Methods that collect the iterator
@@ -455,6 +460,7 @@ export class AsyncArrayStream<Input> {
      * ```ts
      * const stream = await new AsyncArrayStream([[1, 2], [3, [4, 5]], [5, [6, [7, 8]]]]).flat(2);
      * // stream = [1, 2, 3, 4, 5, 5, 6, [7, 8]]
+     * ```
      */
     public async flat<End, D extends number = 1>(
         d?: D
@@ -465,7 +471,11 @@ export class AsyncArrayStream<Input> {
 
     /**
      * Consume the iterator and return a boolean if any item causes the function to return true.
-     * It is short circuiting and will return after any item returns true.
+     * It is short circuiting and will return after any item returns true, i.e.
+     * ```ts
+     * const hasEven = await new AsyncArrayStream([1, 2, 3, 4, 5]).any((item) => item % 2 === 0);
+     * console.log(hasEven) // true
+     * ```
      */
     public async any(fn: MaybeAsyncFn<Input, boolean>): Promise<boolean> {
         for await (const item of this.read()) {
