@@ -164,6 +164,23 @@ describe("AsyncArrayStream", () => {
                 const result = await stream.collect();
                 expect(result).toEqual([1, 0, 2, 0, 3]);
             });
+
+            it("should work with a function", async () => {
+                let i = 0;
+                const stream = new AsyncArrayStream([1, 2, 3]).intersperse(
+                    async () => i++
+                );
+                const result = await stream.collect();
+                expect(result).toEqual([1, 0, 2, 1, 3]);
+            });
+
+            it("should call the function with the item to intersperse if it is a function", async () => {
+                const stream = new AsyncArrayStream([1, 2, 3]).intersperse(
+                    async (x) => x + 100
+                );
+                const result = await stream.collect();
+                expect(result).toEqual([1, 101, 2, 102, 3]);
+            });
         });
 
         describe("zip", () => {

@@ -39,7 +39,7 @@ console.log(result); // [{ idx: 0, value: 1, next: 2 }, { idx: 1, value: 2, next
 Also now available is the asynchronous array stream. It has the additional feature of letting users use a promise generator for the iterator, i.e.
 
 ```ts
-let pageToken: string | null = 0;
+let pageToken: string | null = null;
 async function generatePromise(): Promise<Item[] | null> {
     const response = (await fetch("my-external-api", {
         page_size: 50,
@@ -59,10 +59,12 @@ document.querySelector(".load-more").addEventListener("click", async () => {
     const next = await stream.read().next();
     if (!next.done && next.value) {
         items = items.concat(next.value);
-        rerenderList(items);
+        renderList(items);
     }
 });
 ```
+
+More complete docs can be seen on the [GitHub Pages](https://benyakirten.github.io/array-stream-plus/).
 
 ## Benchmarks
 
@@ -73,6 +75,11 @@ A writeup of benchmarks is available [here](./BENCHMARK.md). The conclusion: use
 I would be overjoyed if anyone wanted to contribute! Please check out the [Contribution Guide](./CONTRIBUTING.md) to get started.
 
 ## Changelog
+
+### 0.2.2
+
+-   Add doc publishing to CI
+-   Update/add doc strings
 
 ### 0.2.1
 
