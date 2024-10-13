@@ -17,4 +17,6 @@ jobs:
       - name: build
         run: bun run build
       - name: publish
-        run: bun publish --access public
+        run: bun publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
