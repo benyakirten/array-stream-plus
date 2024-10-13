@@ -5,7 +5,7 @@ export type AsyncOp = {
 export type AsyncStreamable<Input> =
     | Input[]
     | AsyncIterableIterator<Input>
-    | { promise: () => Promise<Input> };
+    | { promise: () => Promise<Input | null> };
 export type MaybeAsyncFn<Input, Output> = (
     input: Input
 ) => Promise<Output> | Output;

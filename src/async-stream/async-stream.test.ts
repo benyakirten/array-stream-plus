@@ -510,12 +510,12 @@ describe("AsyncArrayStream", () => {
         });
     });
 
-    it("should be able to process a promise generator", async () => {
+    it("should be able to process a promise generator that exhausts when it returns null or a promise that resolves to null", async () => {
         type MockResponse = { ok: boolean; resp?: string };
         const spy = vi.fn();
         spy.mockResolvedValueOnce({ ok: true, resp: "First response" });
         spy.mockResolvedValueOnce({ ok: true, resp: "Second response" });
-        spy.mockResolvedValueOnce({ ok: false });
+        spy.mockResolvedValueOnce(null);
 
         const mapper = (x: MockResponse) =>
             Promise.resolve(x.resp ?? "No response");
@@ -524,10 +524,6 @@ describe("AsyncArrayStream", () => {
         }).map(mapper);
 
         const result = await stream.collect();
-        expect(result).toEqual([
-            "First response",
-            "Second response",
-            "No response",
-        ]);
+        expect(result).toEqual(["First response", "Second response"]);
     });
 });
