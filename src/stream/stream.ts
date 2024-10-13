@@ -603,7 +603,22 @@ export class ArrayStream<Input> {
     }
 
     /**
-     * Consume the iterator and return the first item from the end of the array that causes the function to return true.
+     * Consume the iterator and return the first item that causes the function to
+     * return true starting from the last item in the iteraotr. If the item is not
+     * found, it will return `null`. This method cannot be used on an infinite
+     * generator because it needs to consume the entire iterator to start from the end.
+     * The function does not short circuit and will consume the entire iterator, i.e.
+     * ```ts
+     * const null = new ArrayStream([1, 2, 3, 4, 5])
+     *   .findLast((item) => item % 2 === 0);
+     * console.log(null); // 4
+     * ```
+     * or
+     * ```ts
+     * const item = new ArrayStream([1, 3, 5, 7, 9])
+     *   .findLast((item) => item % 2 === 0);
+     * console.log(item); // null
+     * ```
      */
     public findLast(fn: (item: Input) => boolean): Input | null {
         const items = this.collect();
@@ -616,8 +631,23 @@ export class ArrayStream<Input> {
         return null;
     }
 
-    /*
-     * Consume the iterator and return the index of the first item from the end of the array that causes the function to return true.
+    /**
+     * Consume the iterator and return the index of the first item that causes the function to
+     * return true starting from the last item in the iteraotr. If the item is not
+     * found, it will return `null`. This method cannot be used on an infinite
+     * generator because it needs to consume the entire iterator to start from the end.
+     * The function does not short circuit and will consume the entire iterator, i.e.
+     * ```ts
+     * const position = new ArrayStream([1, 2, 3, 4, 5])
+     *   .findLastIndex((item) => item % 2 === 0);
+     * console.log(position); // 4
+     * ```
+     * or
+     * ```ts
+     * const position = new ArrayStream([1, 3, 5, 7, 9])
+     *   .findLastIndex((item) => item % 2 === 0);
+     * console.log(position); // -1
+     * ```
      */
     public findLastIndex(fn: (item: Input) => boolean): number {
         const items = this.collect();
@@ -632,7 +662,19 @@ export class ArrayStream<Input> {
 
     /**
      * Consume the iterator and return if any item is equal to the input.
-     * NOTE: This will not work correctly for reference values.
+     * This is short circuiting and will return after any item is equal to the input.
+     * NOTE: This will not work correctly for reference values, i.e.
+     * ```ts
+     * const hasTwo = new ArrayStream([1, 2, 3, 4, 5])
+     *   .includes(2);
+     * console.log(hasTwo); // true
+     * ```
+     * but this will not work:
+     * ```ts
+     * const obj = { a: 1 };
+     * const hasObj = new ArrayStream([{ a: 1 }, { a: 2 }])
+     *   .includes(obj);
+     * console.log(hasObj); // false
      */
     public includes(item: Input): boolean {
         for (const i of this.read()) {
@@ -645,9 +687,14 @@ export class ArrayStream<Input> {
     }
 
     /**
-     * Consume the iterator and return a tuple of two arrays.
-     * The first array will contain all items that cause the function to return true.
-     * The second array will contain all items that cause the function to return false.
+     * Consume the iterator and return a tuple of two arrays, the left being
+     * those that caused the function to return `true`, and the right the others, i.e.
+     * ```ts
+     * const [left, right] = new ArrayStream([1, 2, 3, 4, 5])
+     *   .partition((item) => item % 2 === 0);
+     * console.log(left); // [2, 4]
+     * console.log(right); // [1, 3, 5]
+     * ```
      */
     public partition(fn: (input: Input) => boolean): [Input[], Input[]] {
         const left: Input[] = [];
@@ -665,12 +712,25 @@ export class ArrayStream<Input> {
     }
 
     /**
-     * Consume the iterator and run all operations against all items.
+     * Consume the iterator and return the items in an array. It is identical in functionality
+     * to a reduce method with an array that pushes the items, i.e.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5]).collect();
+     * // stream = [1, 2, 3, 4, 5]
+     *
+     * const stream2 = new ArrayStream([1,2,3,4,5]).reduce((acc, next) => {
+     *   acc.push(next);
+     *   return acc;
+     * }, []);
+     * // stream2 = [1, 2, 3, 4, 5]
      */
     public collect(): Input[] {
         return [...this.read()];
     }
 
+    /**
+     * Use this method to manually consume the iterator.
+     */
     public *read() {
         for (const input of this.input) {
             const item = this.applyTransformations(input);

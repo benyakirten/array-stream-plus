@@ -625,8 +625,22 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * Consume the iterator and return the first item from the end of the array that causes the function to return true.
-     * It is short circuiting and will return after any item returns true.
+     * Consume the iterator and return the first item that causes the function to
+     * return true starting from the last item in the iteraotr. If the item is not
+     * found, it will return `null`. This method cannot be used on an infinite
+     * generator because it needs to consume the entire iterator to start from the end.
+     * The function does not short circuit and will consume the entire iterator, i.e.
+     * ```ts
+     * const null = await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .findLast((item) => item % 2 === 0);
+     * console.log(null); // 4
+     * ```
+     * or
+     * ```ts
+     * const item = await new AsyncArrayStream([1, 3, 5, 7, 9])
+     *   .findLast((item) => item % 2 === 0);
+     * console.log(item); // null
+     * ```
      */
     public async findLast(
         fn: MaybeAsyncFn<Input, boolean>
@@ -641,9 +655,23 @@ export class AsyncArrayStream<Input> {
         return null;
     }
 
-    /*
-     * Consume the iterator and return the index of the first item from the end of the array that causes the function to return true.
-     * It is short circuiting and will return after any item returns true.
+    /**
+     * Consume the iterator and return the index of the first item that causes the function to
+     * return true starting from the last item in the iteraotr. If the item is not
+     * found, it will return `null`. This method cannot be used on an infinite
+     * generator because it needs to consume the entire iterator to start from the end.
+     * The function does not short circuit and will consume the entire iterator, i.e.
+     * ```ts
+     * const position = await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .findLastIndex((item) => item % 2 === 0);
+     * console.log(position); // 4
+     * ```
+     * or
+     * ```ts
+     * const position = await new AsyncArrayStream([1, 3, 5, 7, 9])
+     *   .findLastIndex((item) => item % 2 === 0);
+     * console.log(position); // -1
+     * ```
      */
     public async findLastIndex(
         fn: MaybeAsyncFn<Input, boolean>
@@ -661,7 +689,18 @@ export class AsyncArrayStream<Input> {
     /**
      * Consume the iterator and return if any item is equal to the input.
      * This is short circuiting and will return after any item is equal to the input.
-     * NOTE: This will not work correctly for reference values.
+     * NOTE: This will not work correctly for reference values, i.e.
+     * ```ts
+     * const hasTwo = await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .includes(2);
+     * console.log(hasTwo); // true
+     * ```
+     * but this will not work:
+     * ```ts
+     * const obj = { a: 1 };
+     * const hasObj = await new AsyncArrayStream([{ a: 1 }, { a: 2 }])
+     *   .includes(obj);
+     * console.log(hasObj); // false
      */
     public async includes(item: Input): Promise<boolean> {
         for await (const i of this.read()) {
@@ -673,12 +712,13 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * Consume the iterator and return a tuple of two arrays.
-     * The first array will contain all items that cause the function to return true.
-     * The second array will contain all items that cause the function to return false, i.e.
+     * Consume the iterator and return a tuple of two arrays, the left being
+     * those that caused the function to return `true`, and the right the others, i.e.
      * ```ts
-     * const stream = await new AsyncArrayStream([1, 2, 3, 4, 5]).partition((item) => item % 2 === 0);
-     * // stream = [[2, 4], [1, 3, 5]]
+     * const [left, right] = await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .partition((item) => item % 2 === 0);
+     * console.log(left); // [2, 4]
+     * console.log(right); // [1, 3, 5]
      * ```
      */
     public async partition(
