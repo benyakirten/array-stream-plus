@@ -20,7 +20,15 @@ export class AsyncArrayStream<Input> {
     private static makeIterator<Stream>(
         input: AsyncStreamable<Stream>
     ): AsyncIterableIterator<Stream> {
-        if (Array.isArray(input)) {
+        if ("promise" in input) {
+            const promiseGenerator = input.promise;
+            async function* gen() {
+                while (true) {
+                    yield await promiseGenerator();
+                }
+            }
+            return gen();
+        } else if (Array.isArray(input)) {
             const inputClone = structuredClone(input);
             async function* gen() {
                 for (const item of inputClone) {
@@ -28,9 +36,9 @@ export class AsyncArrayStream<Input> {
                 }
             }
             return gen();
+        } else {
+            return input;
         }
-
-        return input;
     }
 
     /**
@@ -75,10 +83,10 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * A forEach operation that is used for debugging purposes.
+     * Add a forEach operation to the operations, useful for signaling debugging. Defaults to logging the item.
      */
     public inspect(
-        fn: MaybeAsyncFn<Input, void | unknown>
+        fn: MaybeAsyncFn<Input, unknown> = (item) => console.log(item)
     ): AsyncArrayStream<Input> {
         this.ops.push({
             type: "foreach",

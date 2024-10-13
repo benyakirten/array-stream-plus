@@ -446,6 +446,17 @@ describe("ArrayStream", () => {
         expect(i).toBe(9);
     });
 
+    test("any should only exhaust until the needed item if they are not greedy", () => {
+        const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+        const gotIndex = stream.any((x) => x === 5);
+        const rest = stream.collect();
+
+        // Iterator has exhausted up to 5 so it will then iterate through 6, 7, 8 then 9
+        expect(gotIndex).toBe(true);
+        expect(rest).toEqual([6, 7, 8, 9]);
+    });
+
     test("all should return true if the predicate is true for all items", () => {
         let i = 0;
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).all((x) => {
@@ -514,6 +525,17 @@ describe("ArrayStream", () => {
 
         expect(got).toBe(-1);
         expect(i).toBe(9);
+    });
+
+    test("findIndex should only exhaust until the needed item if they are not greedy", () => {
+        const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+        const gotIndex = stream.findIndex((x) => x === 5);
+        const rest = stream.collect();
+
+        // Iterator has exhausted up to 5 so it will then iterate through 6, 7, 8 then 9
+        expect(gotIndex).toEqual(4);
+        expect(rest).toEqual([6, 7, 8, 9]);
     });
 
     test("findLast should return the last item that matches the predicate starting from the end", () => {
@@ -617,16 +639,5 @@ describe("ArrayStream", () => {
         }, []);
 
         expect(got).toEqual([{ val: 4 }, { val: 3 }]);
-    });
-
-    test("collectors should continue if they are nto greedy", () => {
-        const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-
-        const gotIndex = stream.findIndex((x) => x === 5);
-        const gotLen = stream.count();
-
-        // Iterator has exhausted up to 5 so it will then iterate through 6, 7, 8 then 9
-        expect(gotIndex).toEqual(4);
-        expect(gotLen).toEqual(4);
     });
 });

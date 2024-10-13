@@ -2,7 +2,10 @@ export type AsyncOp = {
     type: "map" | "filter" | "foreach" | "filterMap";
     op: MaybeAsyncFn<unknown, unknown>;
 };
-export type AsyncStreamable<Input> = Input[] | AsyncIterableIterator<Input>;
+export type AsyncStreamable<Input> =
+    | Input[]
+    | AsyncIterableIterator<Input>
+    | { promise: () => Promise<Input> };
 export type MaybeAsyncFn<Input, Output> = (
     input: Input
 ) => Promise<Output> | Output;

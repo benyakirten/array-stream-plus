@@ -68,7 +68,9 @@ export class ArrayStream<Input> {
     /**
      * A forEach operation that is used for debugging purposes.
      */
-    public inspect(fn: (input: Input) => void): ArrayStream<Input> {
+    public inspect(
+        fn: (input: Input) => void = (item) => console.log(item)
+    ): ArrayStream<Input> {
         this.ops.push({
             type: "foreach",
             op: fn as Op["op"],
