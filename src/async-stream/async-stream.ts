@@ -83,7 +83,13 @@ export class AsyncArrayStream<Input> {
     /**
      * Add a map operation to the iterator that will be resolved when the iterator is finalized.
      * A map operation takes an item of type A and returns an item of type B (or Promise<B>).
-     * A map function is different from forEach in that it should be pure and not have side effects.
+     * A map function is different from forEach in that it should be pure and not have side effects, i.e.
+     * ```ts
+     * const stream = await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .map((item) => item * 2)
+     *   .collect();
+     * console.log(stream); // [2, 4, 6, 8, 10]
+     * ```
      */
     public map<End>(fn: MaybeAsyncFn<Input, End>): AsyncArrayStream<End> {
         this.ops.push({
@@ -95,7 +101,14 @@ export class AsyncArrayStream<Input> {
 
     /**
      * Add a filter operation to the iterator that will be resolved when the iterator is finalized.
-     * A filter operation should be pure and return a boolean (or Promise<boolean>) if the .
+     * A filter operation should be pure and return a boolean (or Promise<boolean>) corresponding
+     * to whether the item should be retained or filtered out, i.e.
+     * ```ts
+     * const stream = await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .filter((item) => item % 2 === 0)
+     *   .collect();
+     * console.log(stream); // [2, 4]
+     * ```
      */
     public filter(fn: MaybeAsyncFn<Input, boolean>): AsyncArrayStream<Input> {
         this.ops.push({
@@ -107,8 +120,15 @@ export class AsyncArrayStream<Input> {
 
     /**
      * Add a forEach operation to the iterator that will be resolved when the iterator is finalized.
-     * A forEach operation takes an iterator of type A and returns void or Promise<void>. A forEach function should
-     * be impure and cause side effects.
+     * A forEach operation takes an iterator of type A and returns void or Promise<void>. A forEach
+     * function should be impure and cause side effects.
+     * ```ts
+     * let sum = 0;
+     * const sum2 = await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .forEach((item) => sum += item)
+     *   .reduce((acc, next) => acc + next, 0);
+     * console.log(sum === sum2); // true
+     * ```
      */
     public forEach(
         fn: MaybeAsyncFn<Input, void | unknown>
@@ -121,7 +141,13 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * Add a forEach operation to the operations, useful for signaling debugging. Defaults to logging the item.
+     * Add a forEach operation to the operations, useful for signaling debugging. Defaults to logging the item, i.e.
+     * ```ts
+     * await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .inspect()
+     *   .collect();
+     * // 1-5 will be logged
+     * ```
      */
     public inspect(
         fn: MaybeAsyncFn<Input, unknown> = (item) => console.log(item)
@@ -134,10 +160,16 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * Add a filterMap operation to the iterator that will be resolved when the iterator is finalized.
-     * A filterMap operation takes an item of type A and returns B | null | undefined | false
-     * (or a Promise that resolves to any of these values). Any type except B will cause the item
-     * to be filtered out. A filterMap functions is typically pure.
+     * Add a filterMap operation to the iterator that will be resolved when the iterator is
+     * finalized. A filterMap operation takes an item of type A and returns
+     * `B | null | undefined | false` (or a `Promise` that resolves to any of these values).
+     * Any type except B will cause the item to be filtered out. A filterMap functions is
+     * typically pure, i.e.
+     * ```ts
+     * const stream = await new AsyncArrayStream([0, 1, 2, 3, 4])
+     *   .filterMap((item) => item % 2 === 0 ? item ** 2 : null)
+     *   .collect();
+     * // stream = [0, 4, 16]
      */
     public filterMap<End>(
         fn: MaybeAsyncFn<Input, End | null | false | undefined>
@@ -157,7 +189,7 @@ export class AsyncArrayStream<Input> {
      * async function* gen() {
      *   let count = 0;
      *   while (true) {
-     *    yield count++;
+     *     yield count++;
      *   }
      * }
      * const stream = await new AsyncArrayStream(gen).take(5).collect();
@@ -246,12 +278,19 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * Return a new iterator that will include an item between every value returned by the iterator.
-     * The item can be a value or a function that returns the value (or a Promise<Value>), i.e.
+     * Return a new iterator that will include an item between every value returned
+     * by the iterator. The item can be a value or a function that, given the latest
+     * iterated value, returns a value of type Value> (or a Promise<Value>), i.e.
      * ```ts
      * const stream = await new AsyncArrayStream([0, 1, 2, 3, 4]).intersperse(5).collect();
      * // stream = [0, 5, 1, 5, 2, 5, 3, 5, 4]
      * ```
+     * or
+     * ```ts
+     * const stream = await new AsyncArrayStream([0, 1, 2, 3, 4])
+     *   .intersperse((item) => item + 100)
+     *   .collect();
+     * // stream = [0, 100, 1, 101, 2, 102, 3, 103, 4]
      */
     public intersperse<Item>(
         fnOrItem: Item | ((item: Input) => Promise<Item> | Item)
@@ -286,9 +325,9 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * Return a new iterator that will yield the cartesian product of the current iterator and the new one.
-     * The new iterator yields a tuple of an item from both data sources. It will be exhausted as soon
-     * as either data source is exhausted, i.e.
+     * Return a new iterator that will yield the cartesian product of the current iterator
+     * and the new one. The new iterator yields a tuple of an item from both data sources.
+     * It will be exhausted as soon as either data source is exhausted, i.e.
      * ```ts
      * const stream = await new AsyncArrayStream([0, 1, 2, 3]).zip([5, 6, 7, 8, 9]).collect();
      * // stream = [[0, 5], [1, 6], [2, 7], [3, 8]]
@@ -316,9 +355,12 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * Returns an iterator that will yield a tuple with the index and the item from the iterator, i.e.
+     * Returns an iterator that will yield a tuple with the index and the item
+     * from the iterator, i.e.
      * ```ts
-     * const stream = await new AsyncArrayStream([100, 200, 300).enumerate().collect();
+     * const stream = await new AsyncArrayStream([100, 200, 300)
+     *   .enumerate()
+     *   .collect();
      * // stream = [[0, 100], [1, 200], [2, 300]]
      * ```
      */
@@ -336,9 +378,11 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * Returns an iterator where every item is mapped to an array of items, each of which is yielded individually, i.e.
+     * Returns an iterator where every item is mapped to an array of items,
+     * each of which is yielded individually, i.e.
      * ```ts
-     * const stream = await new AsyncArrayStream([100, 200, 300).flatMap((item) => [item, item + 1]).collect();
+     * const stream = await new AsyncArrayStream([100, 200, 300)
+     *   .flatMap((item) => [item, item + 1]).collect();
      * // stream = [100, 101, 200, 201, 300, 301]
      * ```
      */
@@ -357,7 +401,8 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * Returns an iterator that will exhaust as soon as the iterator yields a null or undefined value, i.e.
+     * Returns an iterator that will exhaust as soon as the iterator yields a null or
+     * undefined value, i.e.
      * ```ts
      * const stream = await new AsyncArrayStream([100, 200, 300, null, 400]).fuse().collect();
      * // stream = [100, 200, 300]
@@ -419,8 +464,9 @@ export class AsyncArrayStream<Input> {
     /**
      * Consume the iterator and collect all items into the chosen data structure starting from the first item, i.e.
      * ```ts
-     * const stream = await new AsyncArrayStream([100, 200, 300).reduce((acc, next) => acc + next, 0);
-     * // stream = 600
+     * const stream = await new AsyncArrayStream([100, 200, 300)
+     *   .reduce((acc, next) => acc + next, 0);
+     * console.log(stream) // 600
      * ```
      */
     public async reduce<End>(
@@ -437,8 +483,9 @@ export class AsyncArrayStream<Input> {
     /**
      * Consume the iterator and collect all items into the chosen data structure starting from the last item, i.e.
      * ```ts
-     * const stream = await new AsyncArrayStream(["a", "b", "c"]).reduceRight((acc, next) => acc + next, "");
-     * // stream = "cba"
+     * const stream = await new AsyncArrayStream(["a", "b", "c"])
+     *   .reduceRight((acc, next) => acc + next, "");
+     * console.log(stream) // "cba"
      * ```
      */
     public async reduceRight<End>(
@@ -473,8 +520,15 @@ export class AsyncArrayStream<Input> {
      * Consume the iterator and return a boolean if any item causes the function to return true.
      * It is short circuiting and will return after any item returns true, i.e.
      * ```ts
-     * const hasEven = await new AsyncArrayStream([1, 2, 3, 4, 5]).any((item) => item % 2 === 0);
+     * const hasEven = await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .any((item) => item % 2 === 0);
      * console.log(hasEven) // true
+     * ```
+     * or
+     * ```ts
+     * const hasEven = await new AsyncArrayStream([1, 3, 5])
+     *   .any((item) => item % 2 === 0);
+     * console.log(hasEven) // false
      * ```
      */
     public async any(fn: MaybeAsyncFn<Input, boolean>): Promise<boolean> {
@@ -489,7 +543,18 @@ export class AsyncArrayStream<Input> {
 
     /**
      * Consume the iterator and return a boolean if all the items cause the function to return true.
-     * It is short circuiting and will return after any item returns false.
+     * It is short circuiting and will return after any item returns false, i.e.
+     * ```ts
+     * const allEven = await new AsyncArrayStream([2, 4, 6, 8, 10])
+     *   .all((item) => item % 2 === 0);
+     * console.log(allEven) // true
+     * ```
+     * or
+     * ```ts
+     * const allEven = await new AsyncArrayStream([2, 4, 6, 8, 9])
+     *   .all((item) => item % 2 === 0);
+     * console.log(allEven) // false
+     * ```
      */
     public async all(fn: MaybeAsyncFn<Input, boolean>): Promise<boolean> {
         for await (const item of this.read()) {
@@ -503,7 +568,20 @@ export class AsyncArrayStream<Input> {
 
     /**
      * Consume the iterator and return the first item that causes the function to return true.
-     * It is short circuiting and will return after any item returns true.
+     * If the item is not found, it will return `null`. This method can be used on an infinite
+     * generator but will never return if the item is never found. The function short circuits
+     * on the first item that returns true and will not consume the rest of the iterator, i.e.
+     * ```ts
+     * const item = await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .find((item) => item % 2 === 0);
+     * console.log(item); // 2
+     * ```
+     * or
+     * ```ts
+     * const item = await new AsyncArrayStream([1, 3, 5, 7, 9])
+     *   .find((item) => item % 2 === 0);
+     * console.log(item); // null
+     * ```
      */
     public async find(fn: MaybeAsyncFn<Input, boolean>): Promise<Input | null> {
         for await (const item of this.read()) {
@@ -516,8 +594,22 @@ export class AsyncArrayStream<Input> {
     }
 
     /**
-     * Consume the iterator and return the index of the first item in the array that causes the function to return true.
-     * It is short circuiting and will return after any item returns true.
+     * Consume the iterator and return the index of first item that causes the function to
+     * return true. If the item is not found, it will return `-1`. This method can be used
+     * on an infinite generator but will never return if the item is never found.
+     * The function short circuits on the first item that returns true and will not consume
+     * the rest of the iterator, i.e.
+     * ```ts
+     * const position = await new AsyncArrayStream([1, 2, 3, 4, 5])
+     *   .findIndex((item) => item % 2 === 0);
+     * console.log(position); // 1
+     * ```
+     * or
+     * ```ts
+     * const position = await new AsyncArrayStream([1, 3, 5, 7, 9])
+     *   .findIndex((item) => item % 2 === 0);
+     * console.log(position); // -1
+     * ```
      */
     public async findIndex(fn: MaybeAsyncFn<Input, boolean>): Promise<number> {
         let count = 0;

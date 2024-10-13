@@ -100,13 +100,14 @@ export class ArrayStream<Input> {
     /**
      * Add a forEach operation to the iterator that will be resolved when the iterator is finalized.
      * A forEach operation takes an iterator of type A and returns nothing. A forEach function should
-     * be impure and cause side effects.
+     * be impure and cause side effects, i.e.
      * ```ts
      * let sum = 0;
      * const sum2 = new ArrayStream([1, 2, 3, 4, 5])
      *   .forEach((item) => sum += item)
      *   .reduce((acc, next) => acc + next, 0);
      * console.log(sum === sum2); // true
+     * ```
      */
     public forEach(fn: (input: Input) => void): ArrayStream<Input> {
         this.ops.push({
@@ -497,8 +498,15 @@ export class ArrayStream<Input> {
      * Iterate through the iterator and return find the first item where the function returns true.
      * It is short circuiting, i.e.
      * ```ts
-     * const hasEven = new ArrayStream([1, 2, 3, 4, 5]).any((item) => item % 2 === 0);
+     * const hasEven = new ArrayStream([1, 2, 3, 4, 5])
+     *   .any((item) => item % 2 === 0);
      * console.log(hasEven) // true
+     * ```
+     * or
+     * ```ts
+     * const hasEven = new ArrayStream([1, 3, 5, 7, 9])
+     *    .any((item) => item % 2 === 0);
+     * console.log(hasEven) // false
      * ```
      */
     public any(fn: (item: Input) => boolean): boolean {
@@ -513,8 +521,18 @@ export class ArrayStream<Input> {
 
     /**
      * Consume the iterator and return a boolean if all the items cause the function to return true.
-     * Short circuits and returns false on the first item that returns false. In this case,
-     * the iterator will not consume all items.
+     * Short circuits and returns false on the first item that returns false, i.e.
+     * ```ts
+     * const allEven = new ArrayStream([2, 4, 6, 8, 10])
+     *   .all((item) => item % 2 === 0);
+     * console.log(allEven) // true
+     * ```
+     * or
+     * ```ts
+     * const allEven = new ArrayStream([2, 4, 6, 8, 9])
+     *   .all((item) => item % 2 === 0);
+     * console.log(allEven) // false
+     * ```
      */
     public all(fn: (item: Input) => boolean): boolean {
         for (const item of this.read()) {
@@ -528,8 +546,20 @@ export class ArrayStream<Input> {
 
     /**
      * Consume the iterator and return the first item that causes the function to return true.
-     * This method can be used on an infinite generator but will never return if the item is never found.
-     * The function short circuits on the first item that returns true and will not consume the rest of the iterator.
+     * If the item is not found, it will return `null`. This method can be used on an infinite
+     * generator but will never return if the item is never found. The function short circuits
+     * on the first item that returns true and will not consume the rest of the iterator, i.e.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     *   .find((item) => item % 2 === 0);
+     * console.log(stream); // 2
+     * ```
+     * or
+     * ```ts
+     * const stream = new ArrayStream([1, 3, 5, 7, 9])
+     *   .find((item) => item % 2 === 0);
+     * console.log(stream); // null
+     * ```
      */
     public find(fn: (item: Input) => boolean): Input | null {
         for (const item of this.read()) {
@@ -542,9 +572,22 @@ export class ArrayStream<Input> {
     }
 
     /**
-     *  and return the index of the first item in the array that causes the function to return true.
-     * This method can be used on an infinite generator but will never return if the item is never found.
-     * The function short circuits on the first item that returns true and will not consume the rest of the iterator.
+     * Consume the iterator and return the index of first item that causes the function to
+     * return true. If the item is not found, it will return `-1`. This method can be used
+     * on an infinite generator but will never return if the item is never found.
+     * The function short circuits on the first item that returns true and will not consume
+     * the rest of the iterator, i.e.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     *   .findIndex((item) => item % 2 === 0);
+     * console.log(stream); // 1
+     * ```
+     * or
+     * ```ts
+     * const stream = new ArrayStream([1, 3, 5, 7, 9])
+     *   .findIndex((item) => item % 2 === 0);
+     * console.log(stream); // -1
+     * ```
      */
     public findIndex(fn: (item: Input) => boolean): number {
         let count = 0;
