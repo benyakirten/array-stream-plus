@@ -490,4 +490,23 @@ describe("AsyncArrayStream", () => {
             });
         });
     });
+
+    describe("next", () => {
+        it("should yield the next item in the iterator", async () => {
+            const input = [1, 2, 3];
+            const stream = new AsyncArrayStream(input);
+
+            let result = await stream.read().next();
+            expect(result).toEqual({ done: false, value: 1 });
+
+            result = await stream.read().next();
+            expect(result).toEqual({ done: false, value: 2 });
+
+            result = await stream.read().next();
+            expect(result).toEqual({ done: false, value: 3 });
+
+            result = await stream.read().next();
+            expect(result).toEqual({ done: true, value: undefined });
+        });
+    });
 });

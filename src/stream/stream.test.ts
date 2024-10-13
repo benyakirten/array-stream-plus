@@ -640,4 +640,21 @@ describe("ArrayStream", () => {
 
         expect(got).toEqual([{ val: 4 }, { val: 3 }]);
     });
+
+    test("read should return an iterator through the stream's contents", () => {
+        const input = [1, 2, 3];
+        const stream = new ArrayStream(input);
+
+        let result = stream.read().next();
+        expect(result).toEqual({ done: false, value: 1 });
+
+        result = stream.read().next();
+        expect(result).toEqual({ done: false, value: 2 });
+
+        result = stream.read().next();
+        expect(result).toEqual({ done: false, value: 3 });
+
+        result = stream.read().next();
+        expect(result).toEqual({ done: true, value: undefined });
+    });
 });

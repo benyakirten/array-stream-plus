@@ -469,7 +469,7 @@ export class ArrayStream<Input> {
         return [...this.read()];
     }
 
-    private *read() {
+    public *read() {
         for (const input of this.input) {
             const item = this.applyTransformations(input);
             if (item.filtered) {
