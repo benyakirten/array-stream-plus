@@ -38,8 +38,17 @@ export type HandlerReturnType<H, T, Data> =
           : never;
 
 export type NarrowHandlerType<Handler, Input, End> =
-    Handler extends Breaker<Input>
-        ? Breaker<End>
-        : Handler extends Settler<Input>
-          ? Settler<End>
-          : never;
+    Handler extends ErrorHandler<Input, infer Output>
+        ? ErrorHandler<End, Output>
+        : never;
+
+export interface ErrorHandler<Input, Output> {
+    registerCycleError(error: unknown, index: number): void;
+    registerOpError(
+        error: unknown,
+        index: number,
+        item: Input,
+        op: string
+    ): void;
+    compile<Data>(data: Data): Output;
+}

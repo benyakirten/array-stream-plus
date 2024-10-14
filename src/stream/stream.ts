@@ -5,6 +5,7 @@ import type {
     ItemResult,
     HandlerReturnType,
     NarrowHandlerType,
+    ErrorHandler,
 } from "../types";
 
 /**
@@ -30,10 +31,7 @@ import type {
  * console.log(stream); // 200
  * ```
  */
-export class ArrayStream<
-    Input,
-    Handler extends Breaker<Input> | Settler<Input>,
-> {
+export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
     private input: IterableIterator<Input>;
     private ops: Op[] = [];
     /**
