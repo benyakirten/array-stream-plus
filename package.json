@@ -5,7 +5,7 @@
     "files": [
         "dist"
     ],
-    "version": "0.2.2",
+    "version": "1.0.0",
     "author": "Ben Horowitz <benyakir.horowitz@gmail.com> (https://benyakir-writes.com)",
     "keywords": [
         "array",
@@ -18,7 +18,7 @@
     "description": "A library for working with arrays in a functional way motivated by Rust iterators.",
     "license": "MIT",
     "repository": "github:benyakirten/array-stream-plus",
-    "homepage": "https://github.com/benyakirten/array-stream-plus",
+    "homepage": "https://benyakirten.github.io/array-stream-plus/",
     "bugs": {
         "url": "https://github.com/benyakirten/array-stream-plus/issues"
     },
