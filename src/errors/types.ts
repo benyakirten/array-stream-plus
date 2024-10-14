@@ -1,9 +1,13 @@
-export interface ErrorHandler<Output> {
-    register(error: Error): Behavior;
-    compile(): Output;
+export interface ErrorHandler<Input, Report, Output> {
+    registerCycleError(error: Error, index: number): Behavior;
+    registerOpError(
+        error: Error,
+        index: number,
+        item: Input,
+        op: string
+    ): Behavior;
+    report(): Report;
+    compile<Data>(data: Data): Output;
 }
 
-export enum Behavior {
-    CONTINUE = "CONTINUE",
-    STOP = "STOP",
-}
+export type Behavior = "continue" | "break";
