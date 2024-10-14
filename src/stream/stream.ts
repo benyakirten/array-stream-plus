@@ -1,3 +1,5 @@
+import { Breaker } from "../errors/breaker";
+import type { ErrorHandler } from "../errors/types";
 import type { Streamable, Op, ItemResult } from "../types";
 
 /**
@@ -42,7 +44,10 @@ export class ArrayStream<Input> {
      * const stream = new ArrayStream(gen(1, 100));
      * ```
      */
-    constructor(input: Streamable<Input>) {
+    constructor(
+        input: Streamable<Input>,
+        private readonly handler: ErrorHandler<Input> = new Breaker<Input>()
+    ) {
         this.input = ArrayStream.makeIterator(input);
     }
 
@@ -186,7 +191,7 @@ export class ArrayStream<Input> {
             }
         }
 
-        return new ArrayStream(takeGenerator());
+        return new ArrayStream(takeGenerator(), this.handler);
     }
 
     /**
@@ -212,7 +217,7 @@ export class ArrayStream<Input> {
             yield* iter;
         }
 
-        return new ArrayStream(skipGenerator());
+        return new ArrayStream(skipGenerator(), this.handler);
     }
 
     /**
@@ -235,7 +240,7 @@ export class ArrayStream<Input> {
             }
         }
 
-        return new ArrayStream(stepByGenerator());
+        return new ArrayStream(stepByGenerator(), this.handler);
     }
 
     /**
@@ -256,7 +261,7 @@ export class ArrayStream<Input> {
             yield* stream;
         }
 
-        return new ArrayStream(chainGenerator());
+        return new ArrayStream(chainGenerator(), this.handler);
     }
 
     /**
@@ -303,7 +308,7 @@ export class ArrayStream<Input> {
             }
         }
 
-        return new ArrayStream(intersperseGenerator());
+        return new ArrayStream(intersperseGenerator(), this.handler);
     }
 
     /**
@@ -332,7 +337,10 @@ export class ArrayStream<Input> {
             }
         }
 
-        return new ArrayStream(zipGenerator());
+        return new ArrayStream(
+            zipGenerator(),
+            this.handler as ErrorHandler<[Input, Stream]>
+        );
     }
 
     /**
@@ -353,7 +361,10 @@ export class ArrayStream<Input> {
             }
         }
 
-        return new ArrayStream(enumerateGenerator());
+        return new ArrayStream(
+            enumerateGenerator(),
+            this.handler as ErrorHandler<[number, Input]>
+        );
     }
 
     /**
@@ -376,7 +387,10 @@ export class ArrayStream<Input> {
             }
         }
 
-        return new ArrayStream(flatMapGenerator());
+        return new ArrayStream(
+            flatMapGenerator(),
+            this.handler as unknown as ErrorHandler<End>
+        );
     }
 
     /**
@@ -399,7 +413,7 @@ export class ArrayStream<Input> {
             }
         }
 
-        return new ArrayStream(fuseGenerator());
+        return new ArrayStream(fuseGenerator(), this.handler);
     }
 
     // Finalizer methods
@@ -732,47 +746,56 @@ export class ArrayStream<Input> {
      * Use this method to manually consume the iterator.
      */
     public *read() {
+        let index = 0;
         for (const input of this.input) {
-            const item = this.applyTransformations(input);
+            const item = this.applyTransformations(input, index);
             if (item.filtered) {
                 continue;
             }
 
             yield item.value;
+            index++;
         }
     }
 
     /**
      * A helper function that will apply all operation items to an iterator.
      */
-    private applyTransformations(item: Input): ItemResult<Input> {
+    private applyTransformations(
+        item: Input,
+        index: number
+    ): ItemResult<Input> {
         let result;
         for (const op of this.ops) {
-            switch (op.type) {
-                case "filter":
-                    if (op.op(item) === false) {
-                        return { filtered: true };
-                    }
-                    break;
-                case "map":
-                    item = op.op(item) as Input;
-                    break;
-                case "foreach":
-                    op.op(item);
-                    break;
-                case "filterMap":
-                    result = op.op(item);
-                    if (
-                        result === null ||
-                        result === false ||
-                        result === undefined
-                    ) {
-                        return { filtered: true };
-                    }
-                    item = result as Input;
-                    break;
-                default:
-                    break;
+            try {
+                switch (op.type) {
+                    case "filter":
+                        if (op.op(item) === false) {
+                            return { filtered: true };
+                        }
+                        break;
+                    case "map":
+                        item = op.op(item) as Input;
+                        break;
+                    case "foreach":
+                        op.op(item);
+                        break;
+                    case "filterMap":
+                        result = op.op(item);
+                        if (
+                            result === null ||
+                            result === false ||
+                            result === undefined
+                        ) {
+                            return { filtered: true };
+                        }
+                        item = result as Input;
+                        break;
+                    default:
+                        break;
+                }
+            } catch (e) {
+                this.handler.registerOpError(e, index, item, op.type);
             }
         }
 
