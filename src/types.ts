@@ -1,3 +1,5 @@
+import type { Breaker, Settler } from "./errors/handlers";
+
 export type AsyncOp = {
     type: "map" | "filter" | "foreach" | "filterMap";
     op: MaybeAsyncFn<unknown, unknown>;
@@ -27,3 +29,17 @@ export type ItemResult<T> =
     | {
           filtered: true;
       };
+
+export type HandlerReturnType<H, T, Data> =
+    H extends Breaker<T>
+        ? Data
+        : H extends Settler<T>
+          ? { data: Data; errors: Error[] }
+          : never;
+
+export type NarrowHandlerType<Handler, Input, End> =
+    Handler extends Breaker<Input>
+        ? Breaker<End>
+        : Handler extends Settler<Input>
+          ? Settler<End>
+          : never;

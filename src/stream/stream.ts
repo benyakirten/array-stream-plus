@@ -1,6 +1,11 @@
-import { Breaker } from "../errors/breaker";
-import type { ErrorHandler } from "../errors/types";
-import type { Streamable, Op, ItemResult } from "../types";
+import { Breaker, Settler } from "../errors/handlers";
+import type {
+    Streamable,
+    Op,
+    ItemResult,
+    HandlerReturnType,
+    NarrowHandlerType,
+} from "../types";
 
 /**
  * A class for performing a series of operations on a synchronous and iterable source of data.
@@ -25,10 +30,12 @@ import type { Streamable, Op, ItemResult } from "../types";
  * console.log(stream); // 200
  * ```
  */
-export class ArrayStream<Input> {
+export class ArrayStream<
+    Input,
+    Handler extends Breaker<Input> | Settler<Input>,
+> {
     private input: IterableIterator<Input>;
     private ops: Op[] = [];
-
     /**
      * ArrayStream can be initialized with an array or a generator function, i.e.
      * ```ts
@@ -46,7 +53,7 @@ export class ArrayStream<Input> {
      */
     constructor(
         input: Streamable<Input>,
-        private readonly handler: ErrorHandler<Input> = new Breaker<Input>()
+        private readonly handler: Handler = new Breaker<Input>() as Handler
     ) {
         this.input = ArrayStream.makeIterator(input);
     }
@@ -75,12 +82,16 @@ export class ArrayStream<Input> {
      * console.log(stream); // [2, 4, 6, 8, 10]
      * ```
      */
-    public map<End>(fn: (input: Input) => End): ArrayStream<End> {
+    public map<End>(
+        fn: (input: Input) => End
+    ): ArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
         this.ops.push({
             type: "map",
             op: fn as Op["op"],
         });
-        return this as unknown as ArrayStream<End>;
+
+        // @ts-expect-error: TypeScript gonna typescript
+        return this;
     }
 
     /**
@@ -94,11 +105,12 @@ export class ArrayStream<Input> {
      * console.log(stream); // [2, 4]
      * ```
      */
-    public filter(fn: (input: Input) => boolean): ArrayStream<Input> {
+    public filter(fn: (input: Input) => boolean): ArrayStream<Input, Handler> {
         this.ops.push({
             type: "filter",
             op: fn as Op["op"],
         });
+
         return this;
     }
 
@@ -114,11 +126,12 @@ export class ArrayStream<Input> {
      * console.log(sum === sum2); // true
      * ```
      */
-    public forEach(fn: (input: Input) => void): ArrayStream<Input> {
+    public forEach(fn: (input: Input) => void): ArrayStream<Input, Handler> {
         this.ops.push({
             type: "foreach",
             op: fn as Op["op"],
         });
+
         return this;
     }
 
@@ -133,11 +146,12 @@ export class ArrayStream<Input> {
      */
     public inspect(
         fn: (input: Input) => void = (item) => console.log(item)
-    ): ArrayStream<Input> {
+    ): ArrayStream<Input, Handler> {
         this.ops.push({
             type: "foreach",
             op: fn as Op["op"],
         });
+
         return this;
     }
 
@@ -154,12 +168,17 @@ export class ArrayStream<Input> {
      */
     public filterMap<End>(
         fn: (input: Input) => End | null | false | undefined
-    ): ArrayStream<End> {
+    ): ArrayStream<
+        End,
+        Handler extends Breaker<Input> ? Breaker<End> : Settler<End>
+    > {
         this.ops.push({
             type: "filterMap",
             op: fn as Op["op"],
         });
-        return this as unknown as ArrayStream<End>;
+
+        // @ts-expect-error: TypeScript gonna typescript
+        return this;
     }
 
     // Methods that return a new iterator
@@ -179,7 +198,7 @@ export class ArrayStream<Input> {
      * console.log(stream); // [1, 2, 3]
      * ```
      */
-    public take(n: number): ArrayStream<Input> {
+    public take(n: number): ArrayStream<Input, Handler> {
         const iter = this.read();
         function* takeGenerator() {
             for (let i = 0; i < n; i++) {
@@ -203,7 +222,7 @@ export class ArrayStream<Input> {
      * console.log(stream); // [3, 4, 5]
      * ```
      */
-    public skip(n: number): ArrayStream<Input> {
+    public skip(n: number): ArrayStream<Input, Handler> {
         const iter = this.read();
         function* skipGenerator() {
             let count = 0;
@@ -228,7 +247,7 @@ export class ArrayStream<Input> {
      *   .collect();
      * console.log(stream); // [1, 3, 5]
      */
-    public stepBy(n: number): ArrayStream<Input> {
+    public stepBy(n: number): ArrayStream<Input, Handler> {
         const iter = this.read();
         function* stepByGenerator() {
             let count = 0;
@@ -253,7 +272,10 @@ export class ArrayStream<Input> {
      */
     public chain<Stream>(
         stream: Streamable<Stream>
-    ): ArrayStream<Input | Stream> {
+    ): ArrayStream<
+        Input | Stream,
+        NarrowHandlerType<Handler, Input, Input | Stream>
+    > {
         const iter = this.read();
 
         function* chainGenerator() {
@@ -261,6 +283,7 @@ export class ArrayStream<Input> {
             yield* stream;
         }
 
+        // @ts-expect-error: TypeScript gonna typescript
         return new ArrayStream(chainGenerator(), this.handler);
     }
 
@@ -283,7 +306,10 @@ export class ArrayStream<Input> {
      */
     public intersperse<Item>(
         fnOrItem: Item | ((item: Input) => Item)
-    ): ArrayStream<Input | Item> {
+    ): ArrayStream<
+        Input | Item,
+        NarrowHandlerType<Handler, Input, Input | Item>
+    > {
         const iter = this.read();
         function* intersperseGenerator() {
             let item: IteratorResult<Input> | null = null;
@@ -308,6 +334,7 @@ export class ArrayStream<Input> {
             }
         }
 
+        // @ts-expect-error: TypeScript gonna typescript
         return new ArrayStream(intersperseGenerator(), this.handler);
     }
 
@@ -323,7 +350,10 @@ export class ArrayStream<Input> {
      */
     public zip<Stream>(
         stream: Streamable<Stream>
-    ): ArrayStream<[Input, Stream]> {
+    ): ArrayStream<
+        [Input, Stream],
+        NarrowHandlerType<Handler, Input, [Input, Stream]>
+    > {
         const iter = this.read();
         const streamIter = ArrayStream.makeIterator(stream);
         function* zipGenerator() {
@@ -337,10 +367,8 @@ export class ArrayStream<Input> {
             }
         }
 
-        return new ArrayStream(
-            zipGenerator(),
-            this.handler as ErrorHandler<[Input, Stream]>
-        );
+        // @ts-expect-error: TypeScript gonna typescript
+        return new ArrayStream(zipGenerator(), this.handler);
     }
 
     /**
@@ -351,7 +379,10 @@ export class ArrayStream<Input> {
      *  .collect();
      * console.log(stream); // [[0, 100], [1, 200], [2, 300], [3, 400], [4, 500]]
      */
-    public enumerate(): ArrayStream<[number, Input]> {
+    public enumerate(): ArrayStream<
+        [number, Input],
+        NarrowHandlerType<Handler, Input, [number, Input]>
+    > {
         const iter = this.read();
         function* enumerateGenerator() {
             let count = 0;
@@ -360,11 +391,8 @@ export class ArrayStream<Input> {
                 count++;
             }
         }
-
-        return new ArrayStream(
-            enumerateGenerator(),
-            this.handler as ErrorHandler<[number, Input]>
-        );
+        // @ts-expect-error: TypeScript gonna typescript
+        return new ArrayStream(enumerateGenerator(), this.handler);
     }
 
     /**
@@ -376,7 +404,12 @@ export class ArrayStream<Input> {
      *   .collect();
      * console.log(stream); // [1, 101, 2, 102, 3, 103, 4, 104, 5, 105]
      */
-    public flatMap<End>(fn: (input: Input) => End[]): ArrayStream<End> {
+    public flatMap<End>(
+        fn: (input: Input) => End[]
+    ): ArrayStream<
+        End,
+        Handler extends Breaker<Input> ? Breaker<End> : Settler<End>
+    > {
         const iter = this.read();
         function* flatMapGenerator() {
             for (const item of iter) {
@@ -387,10 +420,8 @@ export class ArrayStream<Input> {
             }
         }
 
-        return new ArrayStream(
-            flatMapGenerator(),
-            this.handler as unknown as ErrorHandler<End>
-        );
+        // @ts-expect-error: TypeScript gonna typescript
+        return new ArrayStream(flatMapGenerator(), this.handler);
     }
 
     /**
@@ -401,7 +432,7 @@ export class ArrayStream<Input> {
      *   .collect();
      * console.log(stream); // [1, 2, 3, 4, 5]
      */
-    public fuse(): ArrayStream<Input> {
+    public fuse(): ArrayStream<Input, Handler> {
         const iter = this.read();
         function* fuseGenerator() {
             for (const item of iter) {
@@ -413,6 +444,7 @@ export class ArrayStream<Input> {
             }
         }
 
+        // @ts-expect-error: TypeScript gonna typescript
         return new ArrayStream(fuseGenerator(), this.handler);
     }
 
@@ -710,7 +742,9 @@ export class ArrayStream<Input> {
      * console.log(right); // [1, 3, 5]
      * ```
      */
-    public partition(fn: (input: Input) => boolean): [Input[], Input[]] {
+    public partition(
+        fn: (input: Input) => boolean
+    ): HandlerReturnType<typeof this.handler, Input, [Input[], Input[]]> {
         const left: Input[] = [];
         const right: Input[] = [];
 
@@ -722,7 +756,10 @@ export class ArrayStream<Input> {
             }
         }
 
-        return [left, right];
+        const data = [left, right] as [Input[], Input[]];
+
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(data);
     }
 
     /**
@@ -745,16 +782,26 @@ export class ArrayStream<Input> {
     /**
      * Use this method to manually consume the iterator.
      */
-    public *read() {
+    public *read(): Generator<Input, void, unknown> {
         let index = 0;
-        for (const input of this.input) {
-            const item = this.applyTransformations(input, index);
-            if (item.filtered) {
-                continue;
-            }
+        let item: ItemResult<Input>;
+        while (true) {
+            try {
+                const next = this.input.next();
+                if (next.done) {
+                    break;
+                }
 
-            yield item.value;
-            index++;
+                item = this.applyTransformations(next.value, index);
+                if (item.filtered) {
+                    continue;
+                }
+
+                yield item.value;
+                index++;
+            } catch (e) {
+                this.handler.registerCycleError(e, index);
+            }
         }
     }
 
@@ -802,3 +849,12 @@ export class ArrayStream<Input> {
         return { value: item, filtered: false };
     }
 }
+
+const val = new ArrayStream([1, 2, 3, 4, 5], new Settler<number>()).partition(
+    (item) => item % 2 === 0
+);
+console.log(val);
+const val2 = new ArrayStream([1, 2, 3, 4, 5], new Breaker<number>()).partition(
+    (item) => item % 2 === 0
+);
+console.log(val2);
