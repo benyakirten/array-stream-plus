@@ -1,4 +1,10 @@
-import type { Breaker, Settler } from "./errors/handlers";
+import type {
+    Breaker,
+    BreakerOutput,
+    Ignorer,
+    Settler,
+    SettlerOutput,
+} from "./errors/handlers";
 
 export type AsyncOp = {
     type: "map" | "filter" | "foreach" | "filterMap";
@@ -30,12 +36,18 @@ export type ItemResult<T> =
           filtered: true;
       };
 
-export type HandlerReturnType<H, T, Data> =
-    H extends Breaker<T>
-        ? Data
-        : H extends Settler<T>
-          ? { data: Data; errors: Error[] }
-          : never;
+// TODO: Figure out how to make it work like this:
+// Until we do so, people cannot create their own error handlers
+// export type HandlerReturnType<Handler, Input, Data> =
+//     Handler extends ErrorHandler<Input, infer Output> ? Output<Data> : never
+
+export type HandlerReturnType<Handler, Input, Data> = Handler extends
+    | Breaker<Input>
+    | Ignorer
+    ? BreakerOutput<Data>
+    : Handler extends Settler<Input>
+      ? SettlerOutput<Data>
+      : never;
 
 export type NarrowHandlerType<Handler, Input, End> =
     Handler extends ErrorHandler<Input, infer Output>

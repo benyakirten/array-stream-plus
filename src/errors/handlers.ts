@@ -5,7 +5,7 @@ import { processError } from "./common";
  * Error handler that breaks the execution of the pipeline on the first error.
  * Compiling the data will return the data as is.
  */
-type BreakerOutput<T> = T;
+export type BreakerOutput<T> = T;
 export class Breaker<Input>
     implements ErrorHandler<Input, BreakerOutput<unknown>>
 {
@@ -28,7 +28,7 @@ export class Breaker<Input>
  * Error handler that collects all errors during the pipeline execution.
  * Compiling the data will return the data along with the errors.
  */
-type SettlerOutput<T> = { data: T; errors: Error[] };
+export type SettlerOutput<T> = { data: T; errors: Error[] };
 export class Settler<Input>
     implements ErrorHandler<Input, SettlerOutput<unknown>>
 {
