@@ -1,6 +1,12 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, assertType } from "vitest";
 
 import { AsyncArrayStream } from "./async-stream";
+import {
+    Ignorer,
+    Settler,
+    type SettlerOutput,
+    type Breaker,
+} from "../errors/handlers";
 
 describe("AsyncArrayStream", () => {
     describe("ops", () => {
@@ -12,11 +18,70 @@ describe("AsyncArrayStream", () => {
                 expect(got).toEqual([2, 4, 6]);
             });
 
-            it("should funciton correctly with a synchronous map function", async () => {
+            it("should function correctly with a synchronous map function", async () => {
                 const got = await new AsyncArrayStream([1, 2, 3])
                     .map((x) => x * 2)
                     .collect();
                 expect(got).toEqual([2, 4, 6]);
+            });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = new AsyncArrayStream([1, 2, 3]);
+                assertType<AsyncArrayStream<number, Breaker<number>>>(
+                    breakerStream
+                );
+
+                const breakerStream2 = breakerStream.map((x) => ({
+                    x: String.fromCharCode(x + 65),
+                }));
+                assertType<
+                    AsyncArrayStream<{ x: string }, Breaker<{ x: string }>>
+                >(breakerStream2);
+
+                const breakerStreamData = await breakerStream2.collect();
+                assertType<{ x: string }[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([
+                    { x: "B" },
+                    { x: "C" },
+                    { x: "D" },
+                ]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Ignorer()
+                );
+                assertType<AsyncArrayStream<number, Ignorer>>(ignorerStream);
+
+                const ignorerStream2 = ignorerStream.map((x) =>
+                    String.fromCharCode(x + 65)
+                );
+                assertType<AsyncArrayStream<string, Ignorer>>(ignorerStream2);
+
+                const ignorerStreamData = await ignorerStream2.collect();
+                assertType<string[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual(["B", "C", "D"]);
+
+                const settlerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Settler()
+                );
+                assertType<AsyncArrayStream<number, Settler<number>>>(
+                    settlerStream
+                );
+
+                const settlerStream2 = settlerStream.map((x) =>
+                    String.fromCharCode(x + 65)
+                );
+                assertType<AsyncArrayStream<string, Settler<string>>>(
+                    settlerStream2
+                );
+
+                const settlerStreamData = await settlerStream2.collect();
+                assertType<SettlerOutput<string[]>>(settlerStreamData);
+                expect(settlerStreamData).toEqual({
+                    data: ["B", "C", "D"],
+                    errors: [],
+                });
             });
         });
 
