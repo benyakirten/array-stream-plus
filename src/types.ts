@@ -49,13 +49,17 @@ export type HandlerReturnType<Handler, Input, Data> = Handler extends
       ? SettlerOutput<Data>
       : never;
 
-export type NarrowHandlerType<Handler, Input, End> = Handler extends
-    | Breaker<Input>
-    | Ignorer
-    ? Breaker<End>
-    : Handler extends Settler<Input>
-      ? Settler<End>
-      : never;
+// TODO: Figure out why this doesn't work
+// This will break some types and make them be unknown/never
+// export type NarrowHandlerType<Handler, Input, End> =
+//    Handler extends ErrorHandler<Input, infer Output> ? ErrorHandler<End, Output> : never
+export type NarrowHandlerType<Handler, Input, End> = Handler extends Ignorer
+    ? Ignorer
+    : Handler extends Breaker<Input>
+      ? Breaker<End>
+      : Handler extends Settler<Input>
+        ? Settler<End>
+        : never;
 
 export interface ErrorHandler<Input, Output> {
     registerCycleError(error: unknown, index: number): void;
