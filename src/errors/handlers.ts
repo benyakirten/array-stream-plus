@@ -10,14 +10,13 @@ export class Breaker<Input>
     implements ErrorHandler<Input, BreakerOutput<unknown>>
 {
     registerCycleError(error: unknown, index: number) {
-        const errMessage = `Error occurred at ${index}th item in iterator: ${processError(error).message}`;
-        throw new Error(errMessage);
+        const prefix = `Error occurred at ${index}th item in iterator`;
+        throw processError(error, prefix);
     }
 
     registerOpError(error: unknown, index: number, item: Input, op: string) {
-        let errMessage = `Error occurred while performing ${op} on ${item} at ${index}th item in iterator: `;
-        errMessage += processError(error).message;
-        throw new Error(errMessage);
+        const prefix = `Error occurred while performing ${op} on ${item} at ${index}th item in iterator`;
+        throw processError(error, prefix);
     }
     compile<Data>(data: Data): BreakerOutput<Data> {
         return data;
@@ -35,13 +34,15 @@ export class Settler<Input>
     errors: Error[] = [];
 
     registerCycleError(error: unknown, index: number) {
-        const errMessage = `Error occurred at ${index}th item in iterator: ${processError(error).message}`;
-        this.errors.push(new Error(errMessage));
+        const prefix = `Error occurred at ${index}th item in iterator`;
+        const err = processError(error, prefix);
+        this.errors.push(err);
     }
 
     registerOpError(error: unknown, index: number, item: Input, op: string) {
-        const errMessage = `Error occurred while performing ${op} on ${item} at ${index}th item in iterator: ${processError(error).message}`;
-        this.errors.push(new Error(errMessage));
+        const prefix = `Error occurred while performing ${op} on ${item} at ${index}th item in iterator`;
+        const err = processError(error, prefix);
+        this.errors.push(err);
     }
     compile<Data>(data: Data): SettlerOutput<Data> {
         return { data, errors: this.errors };
