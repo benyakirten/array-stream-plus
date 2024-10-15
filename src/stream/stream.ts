@@ -34,6 +34,7 @@ import type {
 export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
     private input: IterableIterator<Input>;
     private ops: Op[] = [];
+
     /**
      * ArrayStream can be initialized with an array or a generator function, i.e.
      * ```ts
@@ -494,7 +495,7 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * ```
      */
     public count(): HandlerReturnType<typeof this.handler, Input, number> {
-        const len = this.collect().length;
+        const len = [...this.read()].length;
         // @ts-expect-error: TypeScript gonna typescript
         return this.handler.compile(len);
     }
@@ -570,7 +571,7 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
         op: (acc: End, next: Input) => End,
         initialValue: End
     ): HandlerReturnType<typeof this.handler, Input, End> {
-        const intermediate = this.collect();
+        const intermediate = [...this.read()];
 
         let result = initialValue;
         for (let i = intermediate.length - 1; i >= 0; i--) {
@@ -598,7 +599,7 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
     public flat<End, D extends number = 1>(
         d?: D
     ): HandlerReturnType<typeof this.handler, Input, FlatArray<End, D>[]> {
-        const flattened = this.collect().flat(d) as FlatArray<End, D>[];
+        const flattened = [...this.read()].flat(d) as FlatArray<End, D>[];
         // @ts-expect-error: TypeScript gonna typescript
         return this.handler.compile(flattened);
     }
@@ -748,7 +749,7 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
     public findLast(
         fn: (item: Input) => boolean
     ): HandlerReturnType<typeof this.handler, Input, Input | null> {
-        const items = this.collect();
+        const items = [...this.read()];
         for (let i = items.length - 1; i >= 0; i--) {
             if (fn(items[i])) {
                 // @ts-expect-error: TypeScript gonna typescript
@@ -781,7 +782,7 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
     public findLastIndex(
         fn: (item: Input) => boolean
     ): HandlerReturnType<typeof this.handler, Input, number> {
-        const items = this.collect();
+        const items = [...this.read()];
         for (let i = items.length - 1; i >= 0; i--) {
             if (fn(items[i])) {
                 // @ts-expect-error: TypeScript gonna typescript
