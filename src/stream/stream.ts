@@ -491,9 +491,12 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * const stream = new ArrayStream(["a", "b", "c"])
      *   .count();
      * console.log(stream); // 3
+     * ```
      */
-    public count(): number {
-        return this.collect().length;
+    public count(): HandlerReturnType<typeof this.handler, Input, number> {
+        const len = this.collect().length;
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(len);
     }
 
     /**
@@ -511,16 +514,20 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * console.log(stream); // null
      * ```
      */
-    public nth(n: number): Input | null {
+    public nth(
+        n: number
+    ): HandlerReturnType<typeof this.handler, Input, Input | null> {
         let count = 0;
         for (const item of this.read()) {
             if (count === n) {
-                return item;
+                // @ts-expect-error: TypeScript gonna typescript
+                return this.handler.compile(item);
             }
             count++;
         }
 
-        return null;
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(null);
     }
 
     /**
@@ -535,12 +542,20 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
     public reduce<End>(
         op: (acc: End, next: Input) => End,
         initialValue: End
-    ): End {
+    ): HandlerReturnType<typeof this.handler, Input, End> {
         let result = initialValue;
+        let count = 0;
         for (const item of this.read()) {
-            result = op(result, item as unknown as Input);
+            try {
+                result = op(result, item as unknown as Input);
+            } catch (e) {
+                this.handler.registerOpError(e, count, item, "reduce");
+            }
+            count++;
         }
-        return result;
+
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(result);
     }
 
     /**
@@ -549,19 +564,27 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * const stream = new ArrayStream(["a", "b", "c", "d", "e"])
      *   .reduceRight((acc, next) => acc + next, "");
      * console.log(stream); // "edcba"
+     * ```
      */
     public reduceRight<End>(
         op: (acc: End, next: Input) => End,
         initialValue: End
-    ): End {
+    ): HandlerReturnType<typeof this.handler, Input, End> {
         const intermediate = this.collect();
 
         let result = initialValue;
         for (let i = intermediate.length - 1; i >= 0; i--) {
             const item = intermediate[i];
-            result = op(result, item as unknown as Input);
+
+            try {
+                result = op(result, item as unknown as Input);
+            } catch (e) {
+                this.handler.registerOpError(e, i, item, "reduceRight");
+            }
         }
-        return result;
+
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(result);
     }
 
     /**
@@ -572,8 +595,12 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * // stream = [1, 2, 3, 4, 5, 5, 6, [7, 8]]
      * ```
      */
-    public flat<End, D extends number = 1>(d?: D): FlatArray<End, D>[] {
-        return this.collect().flat(d) as FlatArray<End, D>[];
+    public flat<End, D extends number = 1>(
+        d?: D
+    ): HandlerReturnType<typeof this.handler, Input, FlatArray<End, D>[]> {
+        const flattened = this.collect().flat(d) as FlatArray<End, D>[];
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(flattened);
     }
 
     /**
@@ -591,14 +618,18 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * console.log(hasEven) // false
      * ```
      */
-    public any(fn: (item: Input) => boolean): boolean {
+    public any(
+        fn: (item: Input) => boolean
+    ): HandlerReturnType<typeof this.handler, Input, boolean> {
         for (const item of this.read()) {
             if (fn(item)) {
-                return true;
+                // @ts-expect-error: TypeScript gonna typescript
+                return this.handler.compile(true);
             }
         }
 
-        return false;
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(false);
     }
 
     /**
@@ -616,14 +647,18 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * console.log(allEven) // false
      * ```
      */
-    public all(fn: (item: Input) => boolean): boolean {
+    public all(
+        fn: (item: Input) => boolean
+    ): HandlerReturnType<typeof this.handler, Input, boolean> {
         for (const item of this.read()) {
             if (!fn(item)) {
-                return false;
+                // @ts-expect-error: TypeScript gonna typescript
+                return this.handler.compile(false);
             }
         }
 
-        return true;
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(true);
     }
 
     /**
@@ -643,14 +678,18 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * console.log(stream); // null
      * ```
      */
-    public find(fn: (item: Input) => boolean): Input | null {
+    public find(
+        fn: (item: Input) => boolean
+    ): HandlerReturnType<typeof this.handler, Input, Input | null> {
         for (const item of this.read()) {
             if (fn(item)) {
-                return item;
+                // @ts-expect-error: TypeScript gonna typescript
+                return this.handler.compile(item);
             }
         }
 
-        return null;
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(null);
     }
 
     /**
@@ -671,16 +710,20 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * console.log(stream); // -1
      * ```
      */
-    public findIndex(fn: (item: Input) => boolean): number {
+    public findIndex(
+        fn: (item: Input) => boolean
+    ): HandlerReturnType<typeof this.handler, Input, number> {
         let count = 0;
         for (const item of this.read()) {
             if (fn(item)) {
-                return count;
+                // @ts-expect-error: TypeScript gonna typescript
+                return this.handler.compile(count);
             }
 
             count++;
         }
 
+        // @ts-expect-error: TypeScript gonna typescript
         return -1;
     }
 
@@ -702,14 +745,18 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * console.log(item); // null
      * ```
      */
-    public findLast(fn: (item: Input) => boolean): Input | null {
+    public findLast(
+        fn: (item: Input) => boolean
+    ): HandlerReturnType<typeof this.handler, Input, Input | null> {
         const items = this.collect();
         for (let i = items.length - 1; i >= 0; i--) {
             if (fn(items[i])) {
+                // @ts-expect-error: TypeScript gonna typescript
                 return items[i];
             }
         }
 
+        // @ts-expect-error: TypeScript gonna typescript
         return null;
     }
 
@@ -731,15 +778,19 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * console.log(position); // -1
      * ```
      */
-    public findLastIndex(fn: (item: Input) => boolean): number {
+    public findLastIndex(
+        fn: (item: Input) => boolean
+    ): HandlerReturnType<typeof this.handler, Input, number> {
         const items = this.collect();
         for (let i = items.length - 1; i >= 0; i--) {
             if (fn(items[i])) {
-                return i;
+                // @ts-expect-error: TypeScript gonna typescript
+                return this.handler.compile(i);
             }
         }
 
-        return -1;
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(-1);
     }
 
     /**
@@ -758,14 +809,18 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      *   .includes(obj);
      * console.log(hasObj); // false
      */
-    public includes(item: Input): boolean {
+    public includes(
+        item: Input
+    ): HandlerReturnType<typeof this.handler, Input, boolean> {
         for (const i of this.read()) {
             if (i === item) {
-                return true;
+                // @ts-expect-error: TypeScript gonna typescript
+                return this.handler.compile(true);
             }
         }
 
-        return false;
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(false);
     }
 
     /**
@@ -811,8 +866,10 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      * }, []);
      * // stream2 = [1, 2, 3, 4, 5]
      */
-    public collect(): Input[] {
-        return [...this.read()];
+    public collect(): HandlerReturnType<typeof this.handler, Input, Input[]> {
+        const items = [...this.read()];
+        // @ts-expect-error: TypeScript gonna typescript
+        return this.handler.compile(items);
     }
 
     /**
