@@ -636,23 +636,20 @@ describe("ArrayStream", () => {
     });
 
     test("flat should have the correct return type depending on the error handler", () => {
-        const stream = new ArrayStream([1, [2, [3, 4, 5, 6, 7, 8, 9]]]).flat();
-        assertType<FlatArray<number, 1>[]>(stream);
+        const arr = [1, [2, [3, 4, 5, 6, 7, 8, 9]]];
+        const stream = new ArrayStream(arr).flat();
+        assertType<FlatArray<typeof arr, 1>[]>(stream);
         expect(stream).toEqual([1, 2, [3, 4, 5, 6, 7, 8, 9]]);
 
         // TODO: Fix types
-        const stream2 = new ArrayStream(
-            [1, [2, [3, 4, 5, 6, 7, 8, 9]]],
-            new Ignorer()
-        ).flat();
-        // assertType<FlatArray<number, 1>>(stream2);
+        const stream2 = new ArrayStream(arr, new Ignorer()).flat();
+        assertType<FlatArray<typeof arr, 1>[]>(stream2);
         expect(stream2).toEqual([1, 2, [3, 4, 5, 6, 7, 8, 9]]);
 
-        const stream3 = new ArrayStream(
-            [1, [2, [3, 4, 5, 6, 7, 8, 9]]],
-            new Settler()
-        ).flat();
-        // assertType<{ data: FlatArray<number, 1>; errors: Error[] }>(stream3);
+        const stream3 = new ArrayStream(arr, new Settler()).flat();
+        assertType<{ data: FlatArray<typeof arr, 1>[]; errors: Error[] }>(
+            stream3
+        );
         expect(stream3).toEqual({
             data: [1, 2, [3, 4, 5, 6, 7, 8, 9]],
             errors: [],
