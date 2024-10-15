@@ -1,4 +1,4 @@
-import { Breaker, Ignorer, Settler } from "../errors/handlers";
+import { Breaker } from "../errors/handlers";
 import type {
     Streamable,
     Op,
@@ -205,10 +205,7 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      */
     public filterMap<End>(
         fn: (input: Input) => End | null | false | undefined
-    ): ArrayStream<
-        End,
-        Handler extends Breaker<Input> ? Breaker<End> : Settler<End>
-    > {
+    ): ArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
         this.ops.push({
             type: "filterMap",
             op: fn as Op["op"],
@@ -443,10 +440,7 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      */
     public flatMap<End>(
         fn: (input: Input) => End[]
-    ): ArrayStream<
-        End,
-        Handler extends Breaker<Input> ? Breaker<End> : Settler<End>
-    > {
+    ): ArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
         const iter = this.read();
         function* flatMapGenerator() {
             for (const item of iter) {
@@ -943,16 +937,3 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
         return { value: item, filtered: false };
     }
 }
-
-const val = new ArrayStream([1, 2, 3, 4, 5], new Settler<number>()).partition(
-    (item) => item % 2 === 0
-);
-console.log(val);
-const val2 = new ArrayStream([1, 2, 3, 4, 5], new Breaker<number>()).partition(
-    (item) => item % 2 === 0
-);
-console.log(val2);
-const val3 = new ArrayStream([1, 2, 3, 4, 5], new Ignorer()).partition(
-    (item) => item % 2 === 0
-);
-console.log(val3);
