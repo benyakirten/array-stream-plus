@@ -884,7 +884,7 @@ export class ArrayStream<
                 }
 
                 item = this.applyTransformations(next.value, index);
-                if (item.outcome === "filtered" || item.outcome === "errored") {
+                if (item.outcome !== "success") {
                     index++;
                     continue;
                 }
@@ -893,6 +893,7 @@ export class ArrayStream<
             } catch (e) {
                 this.handler.registerCycleError(e, index);
             }
+
             index++;
         }
     }
