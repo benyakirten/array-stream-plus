@@ -31,7 +31,10 @@ import type {
  * console.log(stream); // 200
  * ```
  */
-export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
+export class ArrayStream<
+    Input,
+    Handler extends ErrorHandler<Input, unknown> = Breaker<Input>,
+> {
     private input: IterableIterator<Input>;
     private ops: Op[] = [];
 

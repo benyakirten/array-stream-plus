@@ -1,6 +1,6 @@
 import { map, filter } from "itertools";
 
-import { ArrayStream } from "../../src/stream";
+import { ArrayStream } from "../../src";
 
 function testArrayStreamPerformance(
     lengthAmount: number,

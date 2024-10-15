@@ -1,6 +1,7 @@
-import { expect, describe, test } from "vitest";
+import { expect, describe, test, assertType } from "vitest";
 
 import { ArrayStream } from "./stream";
+import { Ignorer, Settler } from "../errors/handlers";
 
 describe("ArrayStream", () => {
     // Operations
@@ -430,6 +431,40 @@ describe("ArrayStream", () => {
             [2, 4, 6, 8],
             [1, 3, 5, 7, 9],
         ]);
+    });
+
+    test("partition should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).partition(
+            (x) => x % 2 === 0
+        );
+        assertType<[number[], number[]]>(stream);
+        expect(stream).toEqual([
+            [2, 4, 6, 8],
+            [1, 3, 5, 7, 9],
+        ]);
+
+        const stream2 = new ArrayStream(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            new Ignorer()
+        ).partition((x) => x % 2 === 0);
+        assertType<[number[], number[]]>(stream2);
+        expect(stream2).toEqual([
+            [2, 4, 6, 8],
+            [1, 3, 5, 7, 9],
+        ]);
+
+        const stream3 = new ArrayStream(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            new Settler()
+        ).partition((x) => x % 2 === 0);
+        assertType<{ data: [number[], number[]]; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: [
+                [2, 4, 6, 8],
+                [1, 3, 5, 7, 9],
+            ],
+            errors: [],
+        });
     });
 
     test("any should return true and exit early if the predicate is true for any item", () => {

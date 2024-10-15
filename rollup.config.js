@@ -13,6 +13,7 @@ export default {
             tsconfig: "./tsconfig.json",
             declaration: true,
             declarationDir: "dist/types",
+            exclude: ["benchmark/**", "**/*.test.ts"],
         }),
         terser(),
     ],
