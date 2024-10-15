@@ -641,7 +641,6 @@ describe("ArrayStream", () => {
         assertType<FlatArray<typeof arr, 1>[]>(stream);
         expect(stream).toEqual([1, 2, [3, 4, 5, 6, 7, 8, 9]]);
 
-        // TODO: Fix types
         const stream2 = new ArrayStream(arr, new Ignorer()).flat();
         assertType<FlatArray<typeof arr, 1>[]>(stream2);
         expect(stream2).toEqual([1, 2, [3, 4, 5, 6, 7, 8, 9]]);
