@@ -807,7 +807,7 @@ export class AsyncArrayStream<Input> {
     public async *read(): AsyncIterableIterator<Input> {
         for await (const input of this.input) {
             const item = await this.applyTransformations(input);
-            if (item.filtered) {
+            if (item.outcome !== "success") {
                 continue;
             }
 
@@ -826,7 +826,7 @@ export class AsyncArrayStream<Input> {
             switch (op.type) {
                 case "filter":
                     if ((await op.op(item)) === false) {
-                        return { filtered: true };
+                        return { outcome: "filtered" };
                     }
                     break;
                 case "map":
@@ -842,7 +842,7 @@ export class AsyncArrayStream<Input> {
                         result === false ||
                         result === undefined
                     ) {
-                        return { filtered: true };
+                        return { outcome: "filtered" };
                     }
                     item = result as Input;
                     break;
@@ -851,6 +851,6 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return { value: item, filtered: false };
+        return { value: item, outcome: "success" };
     }
 }

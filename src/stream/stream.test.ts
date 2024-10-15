@@ -1176,6 +1176,31 @@ describe("ArrayStream", () => {
         });
     });
 
+    test("collect should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream(["a", "b", "c"])
+            .map((x) => ({ x }))
+            .collect();
+        assertType<{ x: string }[]>(stream);
+        expect(stream).toEqual([{ x: "a" }, { x: "b" }, { x: "c" }]);
+
+        const stream2 = new ArrayStream(
+            ["a", "b", "c"],
+            new Ignorer()
+        ).collect();
+        assertType<string[]>(stream2);
+        expect(stream2).toEqual(["a", "b", "c"]);
+
+        const stream3 = new ArrayStream(
+            ["a", "b", "c"],
+            new Settler()
+        ).collect();
+        assertType<{ data: string[]; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: ["a", "b", "c"],
+            errors: [],
+        });
+    });
+
     test("read should return an iterator through the stream's contents", () => {
         const input = [1, 2, 3];
         const stream = new ArrayStream(input);
@@ -1191,5 +1216,97 @@ describe("ArrayStream", () => {
 
         result = stream.read().next();
         expect(result).toEqual({ done: true, value: undefined });
+    });
+
+    test("read should rethrow the errors with more context if errors arise during iteration and the handler is Breaker", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            throw new Error("Error");
+        }
+
+        const stream = new ArrayStream(gen(), new Breaker());
+        const iter = stream.read();
+        expect(() => {
+            iter.next();
+            iter.next();
+            iter.next();
+        }).toThrowError("Error occurred at item at index 2 in iterator: Error");
+    });
+
+    test("read should rethrow the errors with more context if errors arise during operations and the handler is Breaker", () => {
+        const stream = new ArrayStream([1, 2, 3], new Breaker()).map((x) => {
+            if (x === 2) {
+                throw new Error("Error");
+            }
+            return x;
+        });
+
+        const iter = stream.read();
+        expect(() => {
+            iter.next();
+            iter.next();
+            iter.next();
+        }).toThrowError(
+            "Error occurred at item at index 1 in iterator: Error occurred while performing map on 2 at index 1 in iterator: Error"
+        );
+    });
+
+    test("read should ignore the errors if the handler is Ignorer", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            throw new Error("Error");
+        }
+
+        const stream = new ArrayStream(gen(), new Ignorer());
+        const iter = stream.read();
+        expect(() => {
+            iter.next();
+            iter.next();
+            iter.next();
+        }).not.toThrow();
+
+        const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).map(() => {
+            throw new Error("Surprise!");
+        });
+        expect(() => stream2.collect()).not.toThrow();
+    });
+
+    test("read should collect the errors during iteration if the handler is Settler", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            throw new Error("Cycle Error");
+        }
+
+        const settler = new Settler();
+        const stream = new ArrayStream(gen(), settler).map((x) => {
+            if (x === 2) {
+                throw new Error("Op Error");
+            }
+            return x * 2;
+        });
+        const data = stream.collect();
+        expect(settler.errors).toEqual([
+            new Error(
+                "Error occurred while performing map on 2 at index 1 in iterator: Op Error"
+            ),
+            new Error(
+                "Error occurred at item at index 2 in iterator: Cycle Error"
+            ),
+        ]);
+
+        expect(data).toEqual({
+            data: [2],
+            errors: [
+                new Error(
+                    "Error occurred while performing map on 2 at index 1 in iterator: Op Error"
+                ),
+                new Error(
+                    "Error occurred at item at index 2 in iterator: Cycle Error"
+                ),
+            ],
+        });
     });
 });

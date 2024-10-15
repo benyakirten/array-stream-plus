@@ -10,12 +10,12 @@ export class Breaker<Input>
     implements ErrorHandler<Input, BreakerOutput<unknown>>
 {
     registerCycleError(error: unknown, index: number) {
-        const prefix = `Error occurred at ${index}th item in iterator`;
+        const prefix = `Error occurred at item at index ${index} in iterator`;
         throw processError(error, prefix);
     }
 
     registerOpError(error: unknown, index: number, item: Input, op: string) {
-        const prefix = `Error occurred while performing ${op} on ${item} at ${index}th item in iterator`;
+        const prefix = `Error occurred while performing ${op} on ${item} at index ${index} in iterator`;
         throw processError(error, prefix);
     }
     compile<Data>(data: Data): BreakerOutput<Data> {
@@ -34,13 +34,13 @@ export class Settler<Input>
     errors: Error[] = [];
 
     registerCycleError(error: unknown, index: number) {
-        const prefix = `Error occurred at ${index}th item in iterator`;
+        const prefix = `Error occurred at item at index ${index} in iterator`;
         const err = processError(error, prefix);
         this.errors.push(err);
     }
 
     registerOpError(error: unknown, index: number, item: Input, op: string) {
-        const prefix = `Error occurred while performing ${op} on ${item} at ${index}th item in iterator`;
+        const prefix = `Error occurred while performing ${op} on ${item} at index ${index} in iterator`;
         const err = processError(error, prefix);
         this.errors.push(err);
     }

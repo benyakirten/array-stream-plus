@@ -884,15 +884,16 @@ export class ArrayStream<
                 }
 
                 item = this.applyTransformations(next.value, index);
-                if (item.filtered) {
+                if (item.outcome === "filtered" || item.outcome === "errored") {
+                    index++;
                     continue;
                 }
 
                 yield item.value;
-                index++;
             } catch (e) {
                 this.handler.registerCycleError(e, index);
             }
+            index++;
         }
     }
 
@@ -909,7 +910,7 @@ export class ArrayStream<
                 switch (op.type) {
                     case "filter":
                         if (op.op(item) === false) {
-                            return { filtered: true };
+                            return { outcome: "filtered" };
                         }
                         break;
                     case "map":
@@ -925,7 +926,7 @@ export class ArrayStream<
                             result === false ||
                             result === undefined
                         ) {
-                            return { filtered: true };
+                            return { outcome: "filtered" };
                         }
                         item = result as Input;
                         break;
@@ -934,9 +935,10 @@ export class ArrayStream<
                 }
             } catch (e) {
                 this.handler.registerOpError(e, index, item, op.type);
+                return { outcome: "errored" };
             }
         }
 
-        return { value: item, filtered: false };
+        return { value: item, outcome: "success" };
     }
 }

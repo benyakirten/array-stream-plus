@@ -9,7 +9,7 @@ describe("Breaker", () => {
         const index = 5;
 
         expect(() => breaker.registerCycleError(error, index)).toThrowError(
-            `Error occurred at ${index}th item in iterator: test error`
+            `Error occurred at item at index ${index} in iterator: test error`
         );
     });
 
@@ -23,7 +23,7 @@ describe("Breaker", () => {
         expect(() =>
             breaker.registerOpError(error, index, item, op)
         ).toThrowError(
-            `Error occurred while performing ${op} on ${item} at ${index}th item in iterator: test error`
+            `Error occurred while performing ${op} on ${item} at index ${index} in iterator: test error`
         );
     });
 
@@ -45,7 +45,7 @@ describe("Settler", () => {
 
         expect(settler.errors).toHaveLength(1);
         expect(settler.errors[0].message).toBe(
-            `Error occurred at ${index}th item in iterator: test error`
+            `Error occurred at item at index ${index} in iterator: test error`
         );
     });
 
@@ -60,7 +60,7 @@ describe("Settler", () => {
 
         expect(settler.errors).toHaveLength(1);
         expect(settler.errors[0].message).toBe(
-            `Error occurred while performing ${op} on ${item} at ${index}th item in iterator: test error`
+            `Error occurred while performing ${op} on ${item} at index ${index} in iterator: test error`
         );
     });
 
@@ -78,10 +78,10 @@ describe("Settler", () => {
         expect(result.data).toEqual(data);
         expect(result.errors).toHaveLength(2);
         expect(result.errors[0].message).toBe(
-            `Error occurred at ${index}th item in iterator: test error`
+            `Error occurred at item at index ${index} in iterator: test error`
         );
         expect(result.errors[1].message).toBe(
-            `Error occurred while performing test op on ${data} at ${index}th item in iterator: test error`
+            `Error occurred while performing test op on ${data} at index ${index} in iterator: test error`
         );
     });
 });

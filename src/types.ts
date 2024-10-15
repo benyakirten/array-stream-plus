@@ -30,11 +30,12 @@ export type MaybeAsyncFn<Input, Output> = (
 export type ItemResult<T> =
     | {
           value: T;
-          filtered: false;
+          outcome: "success";
       }
     | {
-          filtered: true;
-      };
+          outcome: "filtered";
+      }
+    | { outcome: "errored" };
 
 // TODO: Figure out how to make it work like this:
 // Until we do so, people cannot create their own error handlers
