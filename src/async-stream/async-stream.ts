@@ -41,7 +41,7 @@ export class AsyncArrayStream<Input> {
 
     /**
      * Input can be an array, an async iterable or a promise generator. If the promise generator returns
-     * `null` when the function si called, the iterator will be considered exhausted.
+     * `null` when the function is called, the iterator will be considered exhausted.
      */
     constructor(input: AsyncStreamable<Input>) {
         this.input = AsyncArrayStream.makeIterator(input);
@@ -89,6 +89,25 @@ export class AsyncArrayStream<Input> {
      *   .map((item) => item * 2)
      *   .collect();
      * console.log(stream); // [2, 4, 6, 8, 10]
+     * ```
+     *
+     * NOTE: Map functions change the type of the iterator, but if you call the function without
+     * reassigning the variable or chaining methods, then the type will
+     * be incorrect, i.e.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     * stream.map(item => String.fromCharCode(item + 65));
+     * ```
+     * then the type of stream will be `ArrayStream<number, Breaker<number>>` instead of
+     * `ArrayStream<string, Breaker<string>>`. Instead, do one of these two:
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     *   .map(item => String.fromCharCode(item + 65));
+     * ```
+     * or
+     * ```ts
+     * let stream = new ArrayStream([1, 2, 3, 4, 5]);
+     * stream = stream.map(item => String.fromCharCode(item + 65));
      * ```
      */
     public map<End>(fn: MaybeAsyncFn<Input, End>): AsyncArrayStream<End> {
@@ -170,6 +189,26 @@ export class AsyncArrayStream<Input> {
      *   .filterMap((item) => item % 2 === 0 ? item ** 2 : null)
      *   .collect();
      * // stream = [0, 4, 16]
+     * ```
+     *
+     * NOTE: Map functions change the type of the iterator, but if you call the function without
+     * reassigning the variable or chaining methods, then the type will
+     * be incorrect, i.e.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     * stream.map(item => String.fromCharCode(item + 65));
+     * ```
+     * then the type of stream will be `ArrayStream<number, Breaker<number>>` instead of
+     * `ArrayStream<string, Breaker<string>>`. Instead, do one of these two:
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     *   .map(item => String.fromCharCode(item + 65));
+     * ```
+     * or
+     * ```ts
+     * let stream = new ArrayStream([1, 2, 3, 4, 5]);
+     * stream = stream.map(item => String.fromCharCode(item + 65));
+     * ```
      */
     public filterMap<End>(
         fn: MaybeAsyncFn<Input, End | null | false | undefined>
@@ -701,6 +740,7 @@ export class AsyncArrayStream<Input> {
      * const hasObj = await new AsyncArrayStream([{ a: 1 }, { a: 2 }])
      *   .includes(obj);
      * console.log(hasObj); // false
+     * ```
      */
     public async includes(item: Input): Promise<boolean> {
         for await (const i of this.read()) {
@@ -750,6 +790,7 @@ export class AsyncArrayStream<Input> {
      *   return acc;
      * }, []);
      * // stream2 = [1, 2, 3, 4, 5]
+     * ```
      */
     public async collect(): Promise<Input[]> {
         const result: Input[] = [];

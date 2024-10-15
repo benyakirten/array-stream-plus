@@ -1,4 +1,4 @@
-import { Breaker, Settler } from "../errors/handlers";
+import { Breaker, Ignorer, Settler } from "../errors/handlers";
 import type {
     Streamable,
     Op,
@@ -78,6 +78,25 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      *   .map((item) => item * 2)
      *   .collect();
      * console.log(stream); // [2, 4, 6, 8, 10]
+     * ```
+     *
+     * NOTE: Map functions change the type of the iterator, but if you call the function without
+     * reassigning the variable or chaining methods, then the type will
+     * be incorrect, i.e.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     * stream.map(item => String.fromCharCode(item + 65));
+     * ```
+     * then the type of stream will be `ArrayStream<number, Breaker<number>>` instead of
+     * `ArrayStream<string, Breaker<string>>`. Instead, do one of these two:
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     *   .map(item => String.fromCharCode(item + 65));
+     * ```
+     * or
+     * ```ts
+     * let stream = new ArrayStream([1, 2, 3, 4, 5]);
+     * stream = stream.map(item => String.fromCharCode(item + 65));
      * ```
      */
     public map<End>(
@@ -162,6 +181,25 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
      *   .filterMap((item) => (item % 2 === 0 ? item * 2 : null))
      *   .collect();
      * console.log(stream); // [4, 8]
+     * ```
+     *
+     * NOTE: Map functions change the type of the iterator, but if you call the function without
+     * reassigning the variable or chaining methods, then the type will
+     * be incorrect, i.e.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     * stream.map(item => String.fromCharCode(item + 65));
+     * ```
+     * then the type of stream will be `ArrayStream<number, Breaker<number>>` instead of
+     * `ArrayStream<string, Breaker<string>>`. Instead, do one of these two:
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     *   .map(item => String.fromCharCode(item + 65));
+     * ```
+     * or
+     * ```ts
+     * let stream = new ArrayStream([1, 2, 3, 4, 5]);
+     * stream = stream.map(item => String.fromCharCode(item + 65));
      * ```
      */
     public filterMap<End>(
@@ -365,7 +403,7 @@ export class ArrayStream<Input, Handler extends ErrorHandler<Input, unknown>> {
             }
         }
 
-        // @ts-expect-error: TypeScript gonna typescript
+        // @ts-expect-error: TypeScript gonna typescript - I don't want to write out the `as` clauses everywhere
         return new ArrayStream(zipGenerator(), this.handler);
     }
 
@@ -856,3 +894,7 @@ const val2 = new ArrayStream([1, 2, 3, 4, 5], new Breaker<number>()).partition(
     (item) => item % 2 === 0
 );
 console.log(val2);
+const val3 = new ArrayStream([1, 2, 3, 4, 5], new Ignorer()).partition(
+    (item) => item % 2 === 0
+);
+console.log(val3);
