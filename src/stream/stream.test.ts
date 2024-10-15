@@ -101,6 +101,17 @@ describe("ArrayStream", () => {
         expect(got).toEqual([2, 6]);
     });
 
+    test("stepBy should return the correct type based on the error handler", () => {
+        const stream1 = new ArrayStream([1, 2, 3]).stepBy(2);
+        assertType<ArrayStream<number, Breaker<number>>>(stream1);
+
+        const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).stepBy(2);
+        assertType<ArrayStream<number, Ignorer>>(stream2);
+
+        const stream3 = new ArrayStream([1, 2, 3], new Settler()).stepBy(2);
+        assertType<ArrayStream<number, Settler<number>>>(stream3);
+    });
+
     test("skip should skip the next n items of the array", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
             .skip(3)
@@ -126,6 +137,17 @@ describe("ArrayStream", () => {
             .collect();
 
         expect(got).toEqual([{ x: 14 }, { x: 18 }]);
+    });
+
+    test("skip should return the correct type based on the error handler", () => {
+        const stream1 = new ArrayStream([1, 2, 3]).skip(2);
+        assertType<ArrayStream<number, Breaker<number>>>(stream1);
+
+        const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).skip(2);
+        assertType<ArrayStream<number, Ignorer>>(stream2);
+
+        const stream3 = new ArrayStream([1, 2, 3], new Settler()).skip(2);
+        assertType<ArrayStream<number, Settler<number>>>(stream3);
     });
 
     test("take should return only as many items as designated", () => {
@@ -176,6 +198,17 @@ describe("ArrayStream", () => {
         expect(got).toEqual([{ value: 4 }, { value: 8 }, { value: 12 }]);
     });
 
+    test("take should return the correct type based on the error handler", () => {
+        const stream1 = new ArrayStream([1, 2, 3]).take(2);
+        assertType<ArrayStream<number, Breaker<number>>>(stream1);
+
+        const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).take(2);
+        assertType<ArrayStream<number, Ignorer>>(stream2);
+
+        const stream3 = new ArrayStream([1, 2, 3], new Settler()).take(2);
+        assertType<ArrayStream<number, Settler<number>>>(stream3);
+    });
+
     test("chain should append one stream to the end of the other", () => {
         const got = new ArrayStream([1, 2, 3]).chain([4, 5, 6]).collect();
 
@@ -189,6 +222,29 @@ describe("ArrayStream", () => {
             .collect();
 
         expect(got).toEqual([2, 4, 5, 6]);
+    });
+
+    test("chain should return the correct type based on the error handler", () => {
+        const stream1 = new ArrayStream([1, 2, 3]).chain(["a", "b", "c"]);
+        assertType<ArrayStream<number | string, Breaker<number | string>>>(
+            stream1
+        );
+
+        const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).chain([
+            "a",
+            "b",
+            "c",
+        ]);
+        assertType<ArrayStream<number | string, Ignorer>>(stream2);
+
+        const stream3 = new ArrayStream([1, 2, 3], new Settler()).chain([
+            "a",
+            "b",
+            "c",
+        ]);
+        assertType<ArrayStream<number | string, Settler<number | string>>>(
+            stream3
+        );
     });
 
     test("zip should combine two streams into a single stream of tuples", () => {
@@ -247,6 +303,29 @@ describe("ArrayStream", () => {
         ]);
     });
 
+    test("zip should return the correct type based on the error handler", () => {
+        const stream1 = new ArrayStream([1, 2, 3]).zip(["a", "b", "c"]);
+        assertType<ArrayStream<[number, string], Breaker<[number, string]>>>(
+            stream1
+        );
+
+        const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).zip([
+            "a",
+            "b",
+            "c",
+        ]);
+        assertType<ArrayStream<[number, string], Ignorer>>(stream2);
+
+        const stream3 = new ArrayStream([1, 2, 3], new Settler()).zip([
+            "a",
+            "b",
+            "c",
+        ]);
+        assertType<ArrayStream<[number, string], Settler<[number, string]>>>(
+            stream3
+        );
+    });
+
     test("intersperse should intersperse a value between each item if it is not a function", () => {
         const got = new ArrayStream([1, 2, 3]).intersperse(0).collect();
         expect(got).toEqual([1, 0, 2, 0, 3]);
@@ -296,6 +375,25 @@ describe("ArrayStream", () => {
         expect(got).toEqual([0, 100, 1, 100, 2]);
     });
 
+    test("intersperse should return the correct type based on the error handler", () => {
+        const stream1 = new ArrayStream([1, 2, 3]).intersperse(() => "a");
+        assertType<ArrayStream<number | string, Breaker<number | string>>>(
+            stream1
+        );
+
+        const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).intersperse(
+            () => "a"
+        );
+        assertType<ArrayStream<number | string, Ignorer>>(stream2);
+
+        const stream3 = new ArrayStream([1, 2, 3], new Settler()).intersperse(
+            () => "a"
+        );
+        assertType<ArrayStream<number | string, Settler<number | string>>>(
+            stream3
+        );
+    });
+
     test("enumerate should return a stream of tuples with the index and the item", () => {
         const got = new ArrayStream([100, 200, 300]).enumerate().collect();
         expect(got).toEqual([
@@ -331,6 +429,27 @@ describe("ArrayStream", () => {
             [1, 1],
             [2, 2],
         ]);
+    });
+
+    test("enumerate should return the correct type based on the error handler", () => {
+        const stream1 = new ArrayStream(["a", "b", "c"]).enumerate();
+        assertType<ArrayStream<[number, string], Breaker<[number, string]>>>(
+            stream1
+        );
+
+        const stream2 = new ArrayStream(
+            ["a", "b", "c"],
+            new Ignorer()
+        ).enumerate();
+        assertType<ArrayStream<[number, string], Ignorer>>(stream2);
+
+        const stream3 = new ArrayStream(
+            ["a", "b", "c"],
+            new Settler()
+        ).enumerate();
+        assertType<ArrayStream<[number, string], Settler<[number, string]>>>(
+            stream3
+        );
     });
 
     test("flatMap should take every item and apply the function to it, then flatten the results", () => {
@@ -370,6 +489,21 @@ describe("ArrayStream", () => {
         expect(got).toEqual([0, 0, 1, 2, 2]);
     });
 
+    test("flatMap should return the correct type based on the error handler", () => {
+        const stream1 = new ArrayStream([1, 2, 3]).flatMap((x) => [x, x + 100]);
+        assertType<ArrayStream<number, Breaker<number>>>(stream1);
+
+        const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).flatMap(
+            (x) => [x, x + 100]
+        );
+        assertType<ArrayStream<number, Ignorer>>(stream2);
+
+        const stream3 = new ArrayStream([1, 2, 3], new Settler()).flatMap(
+            (x) => [x, x + 100]
+        );
+        assertType<ArrayStream<number, Settler<number>>>(stream3);
+    });
+
     test("fuse should create an iterator that ends after the first null or undefined", () => {
         const got = new ArrayStream([1, 2, 3, null, 4, 5, 6]).fuse().collect();
         expect(got).toEqual([1, 2, 3]);
@@ -398,6 +532,17 @@ describe("ArrayStream", () => {
             .fuse()
             .collect();
         expect(got).toEqual([0, 1, 2]);
+    });
+
+    test("fuse should return the correct type based on the error handler", () => {
+        const stream1 = new ArrayStream([1, 2, 3]).fuse();
+        assertType<ArrayStream<number, Breaker<number>>>(stream1);
+
+        const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).fuse();
+        assertType<ArrayStream<number, Ignorer>>(stream2);
+
+        const stream3 = new ArrayStream([1, 2, 3], new Settler()).fuse();
+        assertType<ArrayStream<number, Settler<number>>>(stream3);
     });
 
     // Finalizer
