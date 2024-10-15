@@ -593,10 +593,10 @@ export class ArrayStream<
      * // stream = [1, 2, 3, 4, 5, 5, 6, [7, 8]]
      * ```
      */
-    public flat<End, D extends number = 1>(
+    public flat<D extends number = 1>(
         d?: D
-    ): HandlerReturnType<typeof this.handler, Input, FlatArray<End, D>[]> {
-        const flattened = [...this.read()].flat(d) as FlatArray<End, D>[];
+    ): HandlerReturnType<typeof this.handler, Input, FlatArray<Input, D>[]> {
+        const flattened = [...this.read()].flat(d);
         // @ts-expect-error: TypeScript gonna typescript
         return this.handler.compile(flattened);
     }
@@ -750,12 +750,12 @@ export class ArrayStream<
         for (let i = items.length - 1; i >= 0; i--) {
             if (fn(items[i])) {
                 // @ts-expect-error: TypeScript gonna typescript
-                return items[i];
+                return this.handler.compile(items[i]);
             }
         }
 
         // @ts-expect-error: TypeScript gonna typescript
-        return null;
+        return this.handler.compile(null);
     }
 
     /**

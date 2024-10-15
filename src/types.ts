@@ -49,10 +49,13 @@ export type HandlerReturnType<Handler, Input, Data> = Handler extends
       ? SettlerOutput<Data>
       : never;
 
-export type NarrowHandlerType<Handler, Input, End> =
-    Handler extends ErrorHandler<Input, infer Output>
-        ? ErrorHandler<End, Output>
-        : never;
+export type NarrowHandlerType<Handler, Input, End> = Handler extends
+    | Breaker<Input>
+    | Ignorer
+    ? Breaker<End>
+    : Handler extends Settler<Input>
+      ? Settler<End>
+      : never;
 
 export interface ErrorHandler<Input, Output> {
     registerCycleError(error: unknown, index: number): void;
@@ -64,3 +67,5 @@ export interface ErrorHandler<Input, Output> {
     ): void;
     compile<Data>(data: Data): Output;
 }
+
+export type Constructor<T> = { new: () => T };

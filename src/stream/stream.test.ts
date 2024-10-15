@@ -417,9 +417,56 @@ describe("ArrayStream", () => {
         expect(got).toBeNull();
     });
 
+    test("nth should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).nth(2);
+        assertType<number | null>(stream);
+        expect(stream).toEqual(3);
+
+        const stream2 = new ArrayStream(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            new Ignorer()
+        ).nth(2);
+        assertType<number | null>(stream2);
+        expect(stream2).toEqual(3);
+
+        const stream3 = new ArrayStream(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            new Settler()
+        ).nth(2);
+        assertType<{ data: number | null; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: 3,
+            errors: [],
+        });
+    });
+
     test("flat should flatten the array to the specified depth", () => {
         const got = new ArrayStream([1, [2, [3, [4, 5]]]]).flat(2);
         expect(got).toEqual([1, 2, 3, [4, 5]]);
+    });
+
+    test("flat should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream([1, [2, [3, 4, 5, 6, 7, 8, 9]]]).flat();
+        assertType<FlatArray<number, 1>[]>(stream);
+        expect(stream).toEqual([1, 2, [3, 4, 5, 6, 7, 8, 9]]);
+
+        // TODO: Fix types
+        const stream2 = new ArrayStream(
+            [1, [2, [3, 4, 5, 6, 7, 8, 9]]],
+            new Ignorer()
+        ).flat();
+        // assertType<FlatArray<number, 1>>(stream2);
+        expect(stream2).toEqual([1, 2, [3, 4, 5, 6, 7, 8, 9]]);
+
+        const stream3 = new ArrayStream(
+            [1, [2, [3, 4, 5, 6, 7, 8, 9]]],
+            new Settler()
+        ).flat();
+        // assertType<{ data: FlatArray<number, 1>; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: [1, 2, [3, 4, 5, 6, 7, 8, 9]],
+            errors: [],
+        });
     });
 
     test("partition should split the array into two based on the predicate", () => {
@@ -469,10 +516,12 @@ describe("ArrayStream", () => {
 
     test("any should return true and exit early if the predicate is true for any item", () => {
         let i = 0;
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).any((x) => {
-            i++;
-            return x === 5;
-        });
+        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9])
+            .map((x) => ({ x }))
+            .any((x) => {
+                i++;
+                return x.x === 5;
+            });
 
         expect(got).toBe(true);
         expect(i).toBe(5);
@@ -500,6 +549,31 @@ describe("ArrayStream", () => {
         expect(rest).toEqual([6, 7, 8, 9]);
     });
 
+    test("any should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).any(
+            (x) => x % 2 === 0
+        );
+        assertType<boolean>(stream);
+        expect(stream).toEqual(true);
+
+        const stream2 = new ArrayStream(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            new Ignorer()
+        ).any((x) => x % 2 === 0);
+        assertType<boolean>(stream2);
+        expect(stream2).toEqual(true);
+
+        const stream3 = new ArrayStream(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            new Settler()
+        ).any((x) => x % 2 === 0);
+        assertType<{ data: boolean; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: true,
+            errors: [],
+        });
+    });
+
     test("all should return true if the predicate is true for all items", () => {
         let i = 0;
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).all((x) => {
@@ -522,6 +596,31 @@ describe("ArrayStream", () => {
         expect(i).toBe(5);
     });
 
+    test("all should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).all(
+            (x) => x % 2 === 0
+        );
+        assertType<boolean>(stream);
+        expect(stream).toEqual(false);
+
+        const stream2 = new ArrayStream(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            new Ignorer()
+        ).all((x) => x % 2 === 0);
+        assertType<boolean>(stream2);
+        expect(stream2).toEqual(false);
+
+        const stream3 = new ArrayStream(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            new Settler()
+        ).all((x) => x % 2 === 0);
+        assertType<{ data: boolean; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: false,
+            errors: [],
+        });
+    });
+
     test("find should return the first item that matches the predicate", () => {
         let i = 0;
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).find((x) => {
@@ -542,6 +641,27 @@ describe("ArrayStream", () => {
 
         expect(got).toBeNull();
         expect(i).toBe(9);
+    });
+
+    test("find should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream(["a", "b", "c"]).find((x) => x === "b");
+        assertType<string | null>(stream);
+        expect(stream).toEqual("b");
+
+        const stream2 = new ArrayStream(["a", "b", "c"], new Ignorer()).find(
+            (x) => x === "b"
+        );
+        assertType<string | null>(stream2);
+        expect(stream2).toEqual("b");
+
+        const stream3 = new ArrayStream(["a", "b", "c"], new Settler()).find(
+            (x) => x === "b"
+        );
+        assertType<{ data: string | null; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: "b",
+            errors: [],
+        });
     });
 
     test("findIndex should return the index of the first item that matches the predicate", () => {
@@ -581,6 +701,31 @@ describe("ArrayStream", () => {
         expect(rest).toEqual([6, 7, 8, 9]);
     });
 
+    test("findIndex should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).findIndex(
+            (x) => x % 2 === 0
+        );
+        assertType<number>(stream);
+        expect(stream).toEqual(1);
+
+        const stream2 = new ArrayStream(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            new Ignorer()
+        ).findIndex((x) => x % 2 === 0);
+        assertType<number>(stream2);
+        expect(stream2).toEqual(1);
+
+        const stream3 = new ArrayStream(
+            [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            new Settler()
+        ).findIndex((x) => x % 2 === 0);
+        assertType<{ data: number; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: 1,
+            errors: [],
+        });
+    });
+
     test("findLast should return the last item that matches the predicate starting from the end", () => {
         let i = 0;
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).findLast(
@@ -605,6 +750,31 @@ describe("ArrayStream", () => {
 
         expect(got).toBeNull();
         expect(i).toBe(9);
+    });
+
+    test("findLast should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream(["a", "b", "c"]).findLast(
+            (x) => x === "b"
+        );
+        assertType<string | null>(stream);
+        expect(stream).toEqual("b");
+
+        const stream2 = new ArrayStream(
+            ["a", "b", "c"],
+            new Ignorer()
+        ).findLast((x) => x === "b");
+        assertType<string | null>(stream2);
+        expect(stream2).toEqual("b");
+
+        const stream3 = new ArrayStream(
+            ["a", "b", "c"],
+            new Settler()
+        ).findLast((x) => x === "b");
+        assertType<{ data: string | null; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: "b",
+            errors: [],
+        });
     });
 
     test("findLastIndex should return the index of the last item that matches the predicate strting from the end", () => {
@@ -633,6 +803,31 @@ describe("ArrayStream", () => {
         expect(i).toBe(9);
     });
 
+    test("findLastIndex should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream(["a", "b", "c"]).findLastIndex(
+            (x) => x === "b"
+        );
+        assertType<number>(stream);
+        expect(stream).toEqual(1);
+
+        const stream2 = new ArrayStream(
+            ["a", "b", "c"],
+            new Ignorer()
+        ).findLastIndex((x) => x === "b");
+        assertType<number>(stream2);
+        expect(stream2).toEqual(1);
+
+        const stream3 = new ArrayStream(
+            ["a", "b", "c"],
+            new Settler()
+        ).findLastIndex((x) => x === "b");
+        assertType<{ data: number; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: 1,
+            errors: [],
+        });
+    });
+
     test("includes should return with the same shallow value as the predicate", () => {
         const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).includes(5);
         expect(got).toBe(true);
@@ -648,6 +843,29 @@ describe("ArrayStream", () => {
             a: 2,
         });
         expect(got).toBe(false);
+    });
+
+    test("includes should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream(["a", "b", "c"]).includes("b");
+        assertType<boolean>(stream);
+        expect(stream).toEqual(true);
+
+        const stream2 = new ArrayStream(
+            ["a", "b", "c"],
+            new Ignorer()
+        ).includes("b");
+        assertType<boolean>(stream2);
+        expect(stream2).toEqual(true);
+
+        const stream3 = new ArrayStream(
+            ["a", "b", "c"],
+            new Settler()
+        ).includes("b");
+        assertType<{ data: boolean; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: true,
+            errors: [],
+        });
     });
 
     test("reduce should reduce the array from left to right", () => {
@@ -667,6 +885,32 @@ describe("ArrayStream", () => {
         expect(got).toEqual([{ val: 1 }, { val: 2 }]);
     });
 
+    test("reduce should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream(["a", "b", "c"]).reduce(
+            (acc, next) => acc + next,
+            ""
+        );
+        assertType<string>(stream);
+        expect(stream).toEqual("abc");
+
+        const stream2 = new ArrayStream(["a", "b", "c"], new Ignorer()).reduce(
+            (acc, next) => acc + next,
+            ""
+        );
+        assertType<string>(stream2);
+        expect(stream2).toEqual("abc");
+
+        const stream3 = new ArrayStream(["a", "b", "c"], new Settler()).reduce(
+            (acc, next) => acc + next,
+            ""
+        );
+        assertType<{ data: string; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: "abc",
+            errors: [],
+        });
+    });
+
     test("reduceRight should reduce the array from right to left", () => {
         const got = new ArrayStream([
             { val: 1 },
@@ -682,6 +926,32 @@ describe("ArrayStream", () => {
         }, []);
 
         expect(got).toEqual([{ val: 4 }, { val: 3 }]);
+    });
+
+    test("reduceRight should have the correct return type depending on the error handler", () => {
+        const stream = new ArrayStream(["a", "b", "c"]).reduceRight(
+            (acc, next) => acc + next,
+            ""
+        );
+        assertType<string>(stream);
+        expect(stream).toEqual("cba");
+
+        const stream2 = new ArrayStream(
+            ["a", "b", "c"],
+            new Ignorer()
+        ).reduceRight((acc, next) => acc + next, "");
+        assertType<string>(stream2);
+        expect(stream2).toEqual("cba");
+
+        const stream3 = new ArrayStream(
+            ["a", "b", "c"],
+            new Settler()
+        ).reduceRight((acc, next) => acc + next, "");
+        assertType<{ data: string; errors: Error[] }>(stream3);
+        expect(stream3).toEqual({
+            data: "cba",
+            errors: [],
+        });
     });
 
     test("read should return an iterator through the stream's contents", () => {
