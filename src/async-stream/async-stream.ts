@@ -1,8 +1,13 @@
+import { Breaker } from "../errors/handlers";
 import type {
     AsyncStreamable,
     AsyncOp,
     ItemResult,
     MaybeAsyncFn,
+    ErrorHandler,
+    NarrowHandlerType,
+    HandlerReturnType,
+    RequiredHandler,
 } from "../types";
 
 /**
@@ -35,15 +40,21 @@ import type {
  * })
  * ```
  */
-export class AsyncArrayStream<Input> {
+export class AsyncArrayStream<
+    Input,
+    Handler extends ErrorHandler<Input, unknown> = Breaker<Input>,
+> {
     private input: AsyncIterableIterator<Input>;
     private ops: AsyncOp[] = [];
 
     /**
      * Input can be an array, an async iterable or a promise generator. If the promise generator returns
-     * `null` when the function si called, the iterator will be considered exhausted.
+     * `null` when the function is called, the iterator will be considered exhausted.
      */
-    constructor(input: AsyncStreamable<Input>) {
+    constructor(
+        input: AsyncStreamable<Input>,
+        private readonly handler: Handler = new Breaker<Input>() as Handler
+    ) {
         this.input = AsyncArrayStream.makeIterator(input);
     }
 
@@ -90,13 +101,36 @@ export class AsyncArrayStream<Input> {
      *   .collect();
      * console.log(stream); // [2, 4, 6, 8, 10]
      * ```
+     *
+     * NOTE: Map functions change the type of the iterator, but if you call the function without
+     * reassigning the variable or chaining methods, then the type will
+     * be incorrect, i.e.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     * stream.map(item => String.fromCharCode(item + 65));
+     * ```
+     * then the type of stream will be `ArrayStream<number, Breaker<number>>` instead of
+     * `ArrayStream<string, Breaker<string>>`. Instead, do one of these two:
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     *   .map(item => String.fromCharCode(item + 65));
+     * ```
+     * or
+     * ```ts
+     * let stream = new ArrayStream([1, 2, 3, 4, 5]);
+     * stream = stream.map(item => String.fromCharCode(item + 65));
+     * ```
      */
-    public map<End>(fn: MaybeAsyncFn<Input, End>): AsyncArrayStream<End> {
+    public map<End>(
+        fn: MaybeAsyncFn<Input, End>
+    ): AsyncArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
         this.ops.push({
             type: "map",
             op: fn as AsyncOp["op"],
         });
-        return this as unknown as AsyncArrayStream<End>;
+
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this;
     }
 
     /**
@@ -110,11 +144,14 @@ export class AsyncArrayStream<Input> {
      * console.log(stream); // [2, 4]
      * ```
      */
-    public filter(fn: MaybeAsyncFn<Input, boolean>): AsyncArrayStream<Input> {
+    public filter(
+        fn: MaybeAsyncFn<Input, boolean>
+    ): AsyncArrayStream<Input, Handler> {
         this.ops.push({
             type: "filter",
             op: fn as AsyncOp["op"],
         });
+
         return this;
     }
 
@@ -132,11 +169,12 @@ export class AsyncArrayStream<Input> {
      */
     public forEach(
         fn: MaybeAsyncFn<Input, void | unknown>
-    ): AsyncArrayStream<Input> {
+    ): AsyncArrayStream<Input, Handler> {
         this.ops.push({
             type: "foreach",
             op: fn as AsyncOp["op"],
         });
+
         return this;
     }
 
@@ -151,7 +189,7 @@ export class AsyncArrayStream<Input> {
      */
     public inspect(
         fn: MaybeAsyncFn<Input, unknown> = (item) => console.log(item)
-    ): AsyncArrayStream<Input> {
+    ): AsyncArrayStream<Input, Handler> {
         this.ops.push({
             type: "foreach",
             op: fn as AsyncOp["op"],
@@ -170,15 +208,37 @@ export class AsyncArrayStream<Input> {
      *   .filterMap((item) => item % 2 === 0 ? item ** 2 : null)
      *   .collect();
      * // stream = [0, 4, 16]
+     * ```
+     *
+     * NOTE: Map functions change the type of the iterator, but if you call the function without
+     * reassigning the variable or chaining methods, then the type will
+     * be incorrect, i.e.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     * stream.map(item => String.fromCharCode(item + 65));
+     * ```
+     * then the type of stream will be `ArrayStream<number, Breaker<number>>` instead of
+     * `ArrayStream<string, Breaker<string>>`. Instead, do one of these two:
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5])
+     *   .map(item => String.fromCharCode(item + 65));
+     * ```
+     * or
+     * ```ts
+     * let stream = new ArrayStream([1, 2, 3, 4, 5]);
+     * stream = stream.map(item => String.fromCharCode(item + 65));
+     * ```
      */
     public filterMap<End>(
         fn: MaybeAsyncFn<Input, End | null | false | undefined>
-    ): AsyncArrayStream<End> {
+    ): AsyncArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
         this.ops.push({
             type: "filterMap",
             op: fn as AsyncOp["op"],
         });
-        return this as unknown as AsyncArrayStream<End>;
+
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this;
     }
 
     // Methods that return a new iterator
@@ -196,7 +256,7 @@ export class AsyncArrayStream<Input> {
      * // stream = [0, 1, 2, 3, 4]
      * ```
      */
-    public take(n: number): AsyncArrayStream<Input> {
+    public take(n: number): AsyncArrayStream<Input, Handler> {
         const gen = this.read();
         async function* newGenerator() {
             for (let i = 0; i < n; i++) {
@@ -208,7 +268,8 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(newGenerator());
+        // @ts-expect-error: The handler is narrowed to the new type
+        return new AsyncArrayStream(newGenerator(), this.handler);
     }
 
     /**
@@ -218,7 +279,7 @@ export class AsyncArrayStream<Input> {
      * // stream = [2, 3, 4]
      * ```
      */
-    public skip(n: number): AsyncArrayStream<Input> {
+    public skip(n: number): AsyncArrayStream<Input, Handler> {
         const gen = this.read();
         async function* newGenerator() {
             for (let i = 0; i < n; i++) {
@@ -231,7 +292,8 @@ export class AsyncArrayStream<Input> {
             yield* gen;
         }
 
-        return new AsyncArrayStream(newGenerator());
+        // @ts-expect-error: The handler is narrowed to the new type
+        return new AsyncArrayStream(newGenerator(), this.handler);
     }
 
     /**
@@ -241,7 +303,7 @@ export class AsyncArrayStream<Input> {
      * // stream = [0, 2, 4]
      * ```
      */
-    public stepBy(n: number): AsyncArrayStream<Input> {
+    public stepBy(n: number): AsyncArrayStream<Input, Handler> {
         const gen = this.read();
         async function* stepByGenerator() {
             let iter = 0;
@@ -253,7 +315,8 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(stepByGenerator());
+        // @ts-expect-error: The handler is narrowed to the new type
+        return new AsyncArrayStream(stepByGenerator(), this.handler);
     }
 
     /**
@@ -265,7 +328,10 @@ export class AsyncArrayStream<Input> {
      */
     public chain<Stream>(
         stream: AsyncStreamable<Stream>
-    ): AsyncArrayStream<Input | Stream> {
+    ): AsyncArrayStream<
+        Input | Stream,
+        NarrowHandlerType<Handler, Input, Input | Stream>
+    > {
         const gen = this.read();
         const streamGen = AsyncArrayStream.makeIterator(stream);
 
@@ -274,7 +340,8 @@ export class AsyncArrayStream<Input> {
             yield* streamGen;
         }
 
-        return new AsyncArrayStream(chainGenerator());
+        // @ts-expect-error: The handler is narrowed to the new
+        return new AsyncArrayStream(chainGenerator(), this.handler);
     }
 
     /**
@@ -294,7 +361,10 @@ export class AsyncArrayStream<Input> {
      */
     public intersperse<Item>(
         fnOrItem: Item | ((item: Input) => Promise<Item> | Item)
-    ): AsyncArrayStream<Input | Item> {
+    ): AsyncArrayStream<
+        Input | Item,
+        NarrowHandlerType<Handler, Input, Input | Item>
+    > {
         const iter = this.input;
 
         async function* intersperseGenerator() {
@@ -321,7 +391,9 @@ export class AsyncArrayStream<Input> {
                 yield intersperseItem;
             }
         }
-        return new AsyncArrayStream(intersperseGenerator());
+
+        // @ts-expect-error: The handler is narrowed to the new type
+        return new AsyncArrayStream(intersperseGenerator(), this.handler);
     }
 
     /**
@@ -336,7 +408,10 @@ export class AsyncArrayStream<Input> {
      */
     public zip<Stream>(
         stream: AsyncStreamable<Stream>
-    ): AsyncArrayStream<[Input, Stream]> {
+    ): AsyncArrayStream<
+        [Input, Stream],
+        NarrowHandlerType<Handler, Input, [Input, Stream]>
+    > {
         const iter = this.read();
         const streamIter = AsyncArrayStream.makeIterator(stream);
 
@@ -351,7 +426,8 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(zipGenerator());
+        // @ts-expect-error: The handler is narrowed to the new type
+        return new AsyncArrayStream(zipGenerator(), this.handler);
     }
 
     /**
@@ -364,7 +440,10 @@ export class AsyncArrayStream<Input> {
      * // stream = [[0, 100], [1, 200], [2, 300]]
      * ```
      */
-    public enumerate(): AsyncArrayStream<[number, Input]> {
+    public enumerate(): AsyncArrayStream<
+        [number, Input],
+        NarrowHandlerType<Handler, Input, [number, Input]>
+    > {
         const iter = this.read();
         async function* enumerateGenerator() {
             let count = 0;
@@ -374,7 +453,8 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(enumerateGenerator());
+        // @ts-expect-error: The handler is narrowed to the new type
+        return new AsyncArrayStream(enumerateGenerator(), this.handler);
     }
 
     /**
@@ -386,7 +466,9 @@ export class AsyncArrayStream<Input> {
      * // stream = [100, 101, 200, 201, 300, 301]
      * ```
      */
-    public flatMap<End>(fn: MaybeAsyncFn<Input, End[]>): AsyncArrayStream<End> {
+    public flatMap<End>(
+        fn: MaybeAsyncFn<Input, End[]>
+    ): AsyncArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
         const iter = this.read();
         async function* flatMapGenerator() {
             for await (const item of iter) {
@@ -397,7 +479,8 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(flatMapGenerator());
+        // @ts-expect-error: The handler is narrowed to the new type
+        return new AsyncArrayStream(flatMapGenerator(), this.handler);
     }
 
     /**
@@ -408,7 +491,7 @@ export class AsyncArrayStream<Input> {
      * // stream = [100, 200, 300]
      * ```
      */
-    public fuse(): AsyncArrayStream<Input> {
+    public fuse(): AsyncArrayStream<Required<Input>, RequiredHandler<Handler>> {
         const gen = this.read();
         async function* fuseGenerator() {
             for await (const item of gen) {
@@ -420,7 +503,8 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return new AsyncArrayStream(fuseGenerator());
+        // @ts-expect-error: The handler is narrowed to the new type
+        return new AsyncArrayStream(fuseGenerator(), this.handler);
     }
 
     // Methods that collect the iterator
@@ -431,14 +515,12 @@ export class AsyncArrayStream<Input> {
      * // stream = 3
      * ```
      */
-    public async count(): Promise<number> {
-        let count = 0;
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for await (const _item of this.input) {
-            count++;
-        }
-
-        return count;
+    public async count(): Promise<
+        HandlerReturnType<typeof this.handler, Input, number>
+    > {
+        const arr = await this.toArray();
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(arr.length);
     }
 
     /**
@@ -448,17 +530,21 @@ export class AsyncArrayStream<Input> {
      * // stream = 200
      * ```
      */
-    public async nth(n: number): Promise<Input | null> {
-        let count = 0;
+    public async nth(
+        n: number
+    ): Promise<HandlerReturnType<typeof this.handler, Input, Input | null>> {
+        let index = 0;
         for await (const item of this.read()) {
-            if (count == n) {
-                return item;
+            if (index == n) {
+                // @ts-expect-error: The handler is narrowed to the new type
+                return this.handler.compile(item);
             }
 
-            count++;
+            index++;
         }
 
-        return null;
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(null);
     }
 
     /**
@@ -472,12 +558,20 @@ export class AsyncArrayStream<Input> {
     public async reduce<End>(
         op: (acc: End, next: Input) => End | Promise<End>,
         initialValue: End
-    ): Promise<End> {
+    ): Promise<HandlerReturnType<typeof this.handler, Input, End>> {
         let result = initialValue;
+        let index = 0;
         for await (const item of this.read()) {
-            result = await op(result, item as unknown as Input);
+            try {
+                result = await op(result, item as unknown as Input);
+            } catch (e) {
+                this.handler.registerOpError(e, index, item, "reduce");
+            }
+            index++;
         }
-        return result;
+
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(result);
     }
 
     /**
@@ -491,15 +585,21 @@ export class AsyncArrayStream<Input> {
     public async reduceRight<End>(
         op: (acc: End, next: Input) => End | Promise<End>,
         initialValue: End
-    ): Promise<End> {
-        const intermediate = await this.collect();
+    ): Promise<HandlerReturnType<typeof this.handler, Input, End>> {
+        const intermediate = await this.toArray();
 
         let result = initialValue;
         for (let i = intermediate.length - 1; i >= 0; i--) {
             const item = intermediate[i];
-            result = await op(result, item as unknown as Input);
+            try {
+                result = await op(result, item as unknown as Input);
+            } catch (e) {
+                this.handler.registerOpError(e, i, item, "reduceRight");
+            }
         }
-        return result;
+
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(result);
     }
 
     /**
@@ -509,11 +609,15 @@ export class AsyncArrayStream<Input> {
      * // stream = [1, 2, 3, 4, 5, 5, 6, [7, 8]]
      * ```
      */
-    public async flat<End, D extends number = 1>(
+    public async flat<D extends number = 1>(
         d?: D
-    ): Promise<FlatArray<End, D>[]> {
-        const result = await this.collect();
-        return result.flat(d) as FlatArray<End, D>[];
+    ): Promise<
+        HandlerReturnType<typeof this.handler, Input, FlatArray<Input, D>[]>
+    > {
+        const result = await this.toArray();
+        const flattened = result.flat(d);
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(flattened);
     }
 
     /**
@@ -531,14 +635,18 @@ export class AsyncArrayStream<Input> {
      * console.log(hasEven) // false
      * ```
      */
-    public async any(fn: MaybeAsyncFn<Input, boolean>): Promise<boolean> {
+    public async any(
+        fn: MaybeAsyncFn<Input, boolean>
+    ): Promise<HandlerReturnType<typeof this.handler, Input, boolean>> {
         for await (const item of this.read()) {
             if (await fn(item)) {
-                return true;
+                // @ts-expect-error: The handler is narrowed to the new type
+                return this.handler.compile(true);
             }
         }
 
-        return false;
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(false);
     }
 
     /**
@@ -556,14 +664,18 @@ export class AsyncArrayStream<Input> {
      * console.log(allEven) // false
      * ```
      */
-    public async all(fn: MaybeAsyncFn<Input, boolean>): Promise<boolean> {
+    public async all(
+        fn: MaybeAsyncFn<Input, boolean>
+    ): Promise<HandlerReturnType<typeof this.handler, Input, boolean>> {
         for await (const item of this.read()) {
             if (!(await fn(item))) {
-                return false;
+                // @ts-expect-error: The handler is narrowed to the new type
+                return this.handler.compile(false);
             }
         }
 
-        return true;
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(true);
     }
 
     /**
@@ -583,14 +695,18 @@ export class AsyncArrayStream<Input> {
      * console.log(item); // null
      * ```
      */
-    public async find(fn: MaybeAsyncFn<Input, boolean>): Promise<Input | null> {
+    public async find(
+        fn: MaybeAsyncFn<Input, boolean>
+    ): Promise<HandlerReturnType<typeof this.handler, Input, Input | null>> {
         for await (const item of this.read()) {
             if (await fn(item)) {
-                return item;
+                // @ts-expect-error: The handler is narrowed to the new type
+                return this.handler.compile(item);
             }
         }
 
-        return null;
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(null);
     }
 
     /**
@@ -611,17 +727,21 @@ export class AsyncArrayStream<Input> {
      * console.log(position); // -1
      * ```
      */
-    public async findIndex(fn: MaybeAsyncFn<Input, boolean>): Promise<number> {
+    public async findIndex(
+        fn: MaybeAsyncFn<Input, boolean>
+    ): Promise<HandlerReturnType<typeof this.handler, Input, number>> {
         let count = 0;
         for await (const item of this.read()) {
             if (await fn(item)) {
-                return count;
+                // @ts-expect-error: The handler is narrowed to the new type
+                return this.handler.compile(count);
             }
 
             count++;
         }
 
-        return -1;
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(-1);
     }
 
     /**
@@ -644,15 +764,17 @@ export class AsyncArrayStream<Input> {
      */
     public async findLast(
         fn: MaybeAsyncFn<Input, boolean>
-    ): Promise<Input | null> {
-        const items = await this.collect();
+    ): Promise<HandlerReturnType<typeof this.handler, Input, Input | null>> {
+        const items = await this.toArray();
         for (let i = items.length - 1; i >= 0; i--) {
             if (await fn(items[i])) {
-                return items[i];
+                // @ts-expect-error: The handler is narrowed to the new type
+                return this.handler.compile(items[i]);
             }
         }
 
-        return null;
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(null);
     }
 
     /**
@@ -675,15 +797,17 @@ export class AsyncArrayStream<Input> {
      */
     public async findLastIndex(
         fn: MaybeAsyncFn<Input, boolean>
-    ): Promise<number> {
-        const items = await this.collect();
+    ): Promise<HandlerReturnType<typeof this.handler, Input, number>> {
+        const items = await this.toArray();
         for (let i = items.length - 1; i >= 0; i--) {
             if (await fn(items[i])) {
-                return i;
+                // @ts-expect-error: The handler is narrowed to the new type
+                return this.handler.compile(i);
             }
         }
 
-        return -1;
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(-1);
     }
 
     /**
@@ -701,14 +825,20 @@ export class AsyncArrayStream<Input> {
      * const hasObj = await new AsyncArrayStream([{ a: 1 }, { a: 2 }])
      *   .includes(obj);
      * console.log(hasObj); // false
+     * ```
      */
-    public async includes(item: Input): Promise<boolean> {
+    public async includes(
+        item: Input
+    ): Promise<HandlerReturnType<typeof this.handler, Input, boolean>> {
         for await (const i of this.read()) {
             if (i === item) {
-                return true;
+                // @ts-expect-error: The handler is narrowed to the new type
+                return this.handler.compile(true);
             }
         }
-        return false;
+
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(false);
     }
 
     /**
@@ -723,7 +853,9 @@ export class AsyncArrayStream<Input> {
      */
     public async partition(
         fn: MaybeAsyncFn<Input, boolean>
-    ): Promise<[Input[], Input[]]> {
+    ): Promise<
+        HandlerReturnType<typeof this.handler, Input, [Input[], Input[]]>
+    > {
         const left: Input[] = [];
         const right: Input[] = [];
 
@@ -735,7 +867,8 @@ export class AsyncArrayStream<Input> {
             }
         }
 
-        return [left, right];
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile([left, right]);
     }
 
     /**
@@ -750,8 +883,17 @@ export class AsyncArrayStream<Input> {
      *   return acc;
      * }, []);
      * // stream2 = [1, 2, 3, 4, 5]
+     * ```
      */
-    public async collect(): Promise<Input[]> {
+    public async collect(): Promise<
+        HandlerReturnType<typeof this.handler, Input, Input[]>
+    > {
+        const result = await this.toArray();
+        // @ts-expect-error: The handler is narrowed to the new type
+        return this.handler.compile(result);
+    }
+
+    private async toArray(): Promise<Input[]> {
         const result: Input[] = [];
         for await (const item of this.read()) {
             result.push(item);
@@ -764,13 +906,27 @@ export class AsyncArrayStream<Input> {
      * Use this method to manually consume the iterator.
      */
     public async *read(): AsyncIterableIterator<Input> {
-        for await (const input of this.input) {
-            const item = await this.applyTransformations(input);
-            if (item.filtered) {
-                continue;
+        let index = 0;
+        let item: ItemResult<Input>;
+        while (true) {
+            try {
+                const next = await this.input.next();
+                if (next.done) {
+                    break;
+                }
+
+                item = await this.applyTransformations(next.value, index);
+                if (item.outcome !== "success") {
+                    index++;
+                    continue;
+                }
+
+                yield item.value;
+            } catch (e) {
+                this.handler.registerCycleError(e, index);
             }
 
-            yield item.value;
+            index++;
         }
     }
 
@@ -778,38 +934,44 @@ export class AsyncArrayStream<Input> {
      * Helper method to apply all op functions to an item.
      */
     private async applyTransformations(
-        item: Input
+        item: Input,
+        index: number
     ): Promise<ItemResult<Input>> {
         let result;
         for (const op of this.ops) {
-            switch (op.type) {
-                case "filter":
-                    if ((await op.op(item)) === false) {
-                        return { filtered: true };
-                    }
-                    break;
-                case "map":
-                    item = (await op.op(item)) as Input;
-                    break;
-                case "foreach":
-                    await op.op(item);
-                    break;
-                case "filterMap":
-                    result = await op.op(item);
-                    if (
-                        result === null ||
-                        result === false ||
-                        result === undefined
-                    ) {
-                        return { filtered: true };
-                    }
-                    item = result as Input;
-                    break;
-                default:
-                    break;
+            try {
+                switch (op.type) {
+                    case "filter":
+                        if ((await op.op(item)) === false) {
+                            return { outcome: "filtered" };
+                        }
+                        break;
+                    case "map":
+                        item = (await op.op(item)) as Input;
+                        break;
+                    case "foreach":
+                        await op.op(item);
+                        break;
+                    case "filterMap":
+                        result = await op.op(item);
+                        if (
+                            result === null ||
+                            result === false ||
+                            result === undefined
+                        ) {
+                            return { outcome: "filtered" };
+                        }
+                        item = result as Input;
+                        break;
+                    default:
+                        break;
+                }
+            } catch (e) {
+                this.handler.registerOpError(e, index, item, op.type);
+                return { outcome: "errored" };
             }
         }
 
-        return { value: item, filtered: false };
+        return { value: item, outcome: "success" };
     }
 }

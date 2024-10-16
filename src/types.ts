@@ -1,3 +1,11 @@
+import type {
+    Breaker,
+    // BreakerOutput,
+    Ignorer,
+    Settler,
+    SettlerOutput,
+} from "./errors/handlers";
+
 export type AsyncOp = {
     type: "map" | "filter" | "foreach" | "filterMap";
     op: MaybeAsyncFn<unknown, unknown>;
@@ -22,8 +30,55 @@ export type MaybeAsyncFn<Input, Output> = (
 export type ItemResult<T> =
     | {
           value: T;
-          filtered: false;
+          outcome: "success";
       }
     | {
-          filtered: true;
-      };
+          outcome: "filtered";
+      }
+    | { outcome: "errored" };
+
+// TODO: Figure out how to make it work like this:
+// Until we do so, people cannot create their own error handlers
+// export type HandlerReturnType<Handler, Input, Data> =
+//     Handler extends ErrorHandler<Input, infer Output> ? Output<Data> : never
+
+export type HandlerReturnType<Handler, Input, Data> = Handler extends
+    | Breaker<Input>
+    | Ignorer
+    ? Data
+    : Handler extends Settler<Input>
+      ? SettlerOutput<Data>
+      : never;
+
+// TODO: Figure out why this doesn't work
+// This will break some types and make them be unknown/never
+// export type NarrowHandlerType<Handler, Input, End> =
+//    Handler extends ErrorHandler<Input, infer Output> ? ErrorHandler<End, Output> : never
+export type NarrowHandlerType<Handler, Input, End> = Handler extends Ignorer
+    ? Ignorer
+    : Handler extends Breaker<Input>
+      ? Breaker<End>
+      : Handler extends Settler<Input>
+        ? Settler<End>
+        : never;
+
+export interface ErrorHandler<Input, Output> {
+    registerCycleError(error: unknown, index: number): void;
+    registerOpError(
+        error: unknown,
+        index: number,
+        item: Input,
+        op: string
+    ): void;
+    compile<Data>(data: Data): Output;
+}
+
+export type RequiredHandler<Handler> = Handler extends Ignorer
+    ? Ignorer
+    : Handler extends Breaker<infer Input | null>
+      ? Breaker<Input>
+      : Handler extends Settler<infer Input | null>
+        ? Settler<Input>
+        : never;
+
+export type Constructor<T> = { new: () => T };
