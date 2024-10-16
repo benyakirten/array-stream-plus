@@ -4,8 +4,8 @@ import { AsyncArrayStream } from "./async-stream";
 import {
     Ignorer,
     Settler,
+    Breaker,
     type SettlerOutput,
-    type Breaker,
 } from "../errors/handlers";
 
 describe("AsyncArrayStream", () => {
@@ -1528,5 +1528,104 @@ describe("AsyncArrayStream", () => {
             .collect();
 
         expect(got).toEqual([3, 18, 4, 24, 5, 30, 6, 36, 7, 42]);
+    });
+
+    describe("error handling", () => {
+        it("should rethrow the errors with more context if errors arise during iteration and the handler is Breaker", async () => {
+            async function* gen() {
+                yield 1;
+                yield 2;
+                throw new Error("Error");
+            }
+
+            const stream = new AsyncArrayStream(gen(), new Breaker());
+            const iter = stream.read();
+            await expect(async () => {
+                await iter.next();
+                await iter.next();
+                await iter.next();
+            }).rejects.toThrowError(
+                "Error occurred at item at index 2 in iterator: Error"
+            );
+        });
+
+        it("should rethrow the errors with more context if errors arise during operations and the handler is Breaker", async () => {
+            const stream = new AsyncArrayStream([1, 2, 3], new Breaker()).map(
+                (x) => {
+                    if (x === 2) {
+                        throw new Error("Error");
+                    }
+                    return x;
+                }
+            );
+
+            const iter = stream.read();
+            await expect(async () => {
+                await iter.next();
+                await iter.next();
+                await iter.next();
+            }).rejects.toThrowError(
+                "Error occurred at item at index 1 in iterator: Error occurred while performing map on 2 at index 1 in iterator: Error"
+            );
+        });
+
+        it("should ignore the errors if the handler is Ignorer", async () => {
+            async function* gen() {
+                yield 1;
+                yield 2;
+                throw new Error("Error");
+            }
+
+            const stream = new AsyncArrayStream(gen(), new Ignorer());
+            const iter = stream.read();
+
+            await iter.next();
+            await iter.next();
+            await iter.next();
+
+            const stream2 = new AsyncArrayStream([1, 2, 3], new Ignorer()).map(
+                () => {
+                    throw new Error("Surprise!");
+                }
+            );
+            await stream2.collect();
+        });
+
+        it("should collect the errors during iteration if the handler is Settler", async () => {
+            async function* gen() {
+                yield 1;
+                yield 2;
+                throw new Error("Cycle Error");
+            }
+
+            const settler = new Settler();
+            const stream = new AsyncArrayStream(gen(), settler).map((x) => {
+                if (x === 2) {
+                    throw new Error("Op Error");
+                }
+                return x * 2;
+            });
+            const data = await stream.collect();
+            expect(settler.errors).toEqual([
+                new Error(
+                    "Error occurred while performing map on 2 at index 1 in iterator: Op Error"
+                ),
+                new Error(
+                    "Error occurred at item at index 2 in iterator: Cycle Error"
+                ),
+            ]);
+
+            expect(data).toEqual({
+                data: [2],
+                errors: [
+                    new Error(
+                        "Error occurred while performing map on 2 at index 1 in iterator: Op Error"
+                    ),
+                    new Error(
+                        "Error occurred at item at index 2 in iterator: Cycle Error"
+                    ),
+                ],
+            });
+        });
     });
 });
