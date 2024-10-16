@@ -1,6 +1,6 @@
 import type {
     Breaker,
-    BreakerOutput,
+    // BreakerOutput,
     Ignorer,
     Settler,
     SettlerOutput,
@@ -45,7 +45,7 @@ export type ItemResult<T> =
 export type HandlerReturnType<Handler, Input, Data> = Handler extends
     | Breaker<Input>
     | Ignorer
-    ? BreakerOutput<Data>
+    ? Data
     : Handler extends Settler<Input>
       ? SettlerOutput<Data>
       : never;
@@ -75,10 +75,10 @@ export interface ErrorHandler<Input, Output> {
 
 export type RequiredHandler<Handler> = Handler extends Ignorer
     ? Ignorer
-    : Handler extends Breaker<infer Input>
-      ? Breaker<Required<Input>>
-      : Handler extends Settler<infer SettlerInput>
-        ? Settler<Required<SettlerInput>>
+    : Handler extends Breaker<infer Input | null>
+      ? Breaker<Input>
+      : Handler extends Settler<infer Input | null>
+        ? Settler<Input>
         : never;
 
 export type Constructor<T> = { new: () => T };

@@ -609,13 +609,13 @@ export class AsyncArrayStream<
      * // stream = [1, 2, 3, 4, 5, 5, 6, [7, 8]]
      * ```
      */
-    public async flat<End, D extends number = 1>(
+    public async flat<D extends number = 1>(
         d?: D
     ): Promise<
-        HandlerReturnType<typeof this.handler, Input, FlatArray<End, D>[]>
+        HandlerReturnType<typeof this.handler, Input, FlatArray<Input, D>[]>
     > {
         const result = await this.toArray();
-        const flattened = result.flat(d) as FlatArray<End, D>[];
+        const flattened = result.flat(d);
         // @ts-expect-error: The handler is narrowed to the new type
         return this.handler.compile(flattened);
     }

@@ -843,6 +843,28 @@ describe("AsyncArrayStream", () => {
                 const result = await stream.count();
                 expect(result).toBe(3);
             });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = await new AsyncArrayStream([
+                    1, 2, 3,
+                ]).count();
+                assertType<number>(breakerStream);
+                expect(breakerStream).toEqual(3);
+
+                const ignorerStream = await new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Ignorer()
+                ).count();
+                assertType<number>(ignorerStream);
+                expect(ignorerStream).toEqual(3);
+
+                const settlerStream = await new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Settler()
+                ).count();
+                assertType<SettlerOutput<number>>(settlerStream);
+                expect(settlerStream).toEqual({ data: 3, errors: [] });
+            });
         });
 
         describe("nth", () => {
@@ -859,6 +881,28 @@ describe("AsyncArrayStream", () => {
                 const result = await stream.nth(3);
                 expect(result).toBe(null);
             });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = await new AsyncArrayStream([1, 2, 3]).nth(
+                    2
+                );
+                assertType<number | null>(breakerStream);
+                expect(breakerStream).toEqual(3);
+
+                const ignorerStream = await new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Ignorer()
+                ).nth(2);
+                assertType<number | null>(ignorerStream);
+                expect(ignorerStream).toEqual(3);
+
+                const settlerStream = await new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Settler()
+                ).nth(2);
+                assertType<SettlerOutput<number | null>>(settlerStream);
+                expect(settlerStream).toEqual({ data: 3, errors: [] });
+            });
         });
 
         describe("reduce", () => {
@@ -871,10 +915,41 @@ describe("AsyncArrayStream", () => {
                 );
                 expect(result).toBe(6);
             });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const stream = await new AsyncArrayStream(["a", "b", "c"])
+                    .map((x) => ({ x }))
+                    .reduce(
+                        (acc, next) => {
+                            acc.x += next.x;
+                            return acc;
+                        },
+                        { x: "" }
+                    );
+                assertType<{ x: string }>(stream);
+                expect(stream).toEqual({ x: "abc" });
+
+                const stream2 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Ignorer()
+                ).reduce((acc, next) => acc + next, "");
+                assertType<string>(stream2);
+                expect(stream2).toEqual("abc");
+
+                const stream3 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Settler()
+                ).reduce((acc, next) => acc + next, "");
+                assertType<{ data: string; errors: Error[] }>(stream3);
+                expect(stream3).toEqual({
+                    data: "abc",
+                    errors: [],
+                });
+            });
         });
 
         describe("reduceRight", () => {
-            it("should reduceRight items starting from the end of the iterator", async () => {
+            it("should reduce items starting from the end of the iterator", async () => {
                 const input = ["a", "b", "c"];
                 const stream = new AsyncArrayStream(input);
                 const result = await stream.reduceRight(
@@ -882,6 +957,37 @@ describe("AsyncArrayStream", () => {
                     ""
                 );
                 expect(result).toBe("cba");
+            });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const stream = await new AsyncArrayStream(["a", "b", "c"])
+                    .map((x) => ({ x }))
+                    .reduceRight(
+                        (acc, next) => {
+                            acc.x += next.x;
+                            return acc;
+                        },
+                        { x: "" }
+                    );
+                assertType<{ x: string }>(stream);
+                expect(stream).toEqual({ x: "cba" });
+
+                const stream2 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Ignorer()
+                ).reduceRight((acc, next) => acc + next, "");
+                assertType<string>(stream2);
+                expect(stream2).toEqual("cba");
+
+                const stream3 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Settler()
+                ).reduceRight((acc, next) => acc + next, "");
+                assertType<{ data: string; errors: Error[] }>(stream3);
+                expect(stream3).toEqual({
+                    data: "cba",
+                    errors: [],
+                });
             });
         });
 
@@ -895,6 +1001,33 @@ describe("AsyncArrayStream", () => {
                 const stream = new AsyncArrayStream(input);
                 const result = await stream.flat(2);
                 expect(result).toEqual([1, 2, 3, 4, 5, 6, 7, [8, 9]]);
+            });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const arr = [1, [2, [3, 4, 5, 6, 7, 8, 9]]];
+                const stream = await new AsyncArrayStream(arr).flat();
+                assertType<FlatArray<typeof arr, 1>[]>(stream);
+                expect(stream).toEqual([1, 2, [3, 4, 5, 6, 7, 8, 9]]);
+
+                const stream2 = await new AsyncArrayStream(
+                    arr,
+                    new Ignorer()
+                ).flat();
+                assertType<FlatArray<typeof arr, 1>[]>(stream2);
+                expect(stream2).toEqual([1, 2, [3, 4, 5, 6, 7, 8, 9]]);
+
+                const stream3 = await new AsyncArrayStream(
+                    arr,
+                    new Settler()
+                ).flat();
+                assertType<{
+                    data: FlatArray<typeof arr, 1>[];
+                    errors: Error[];
+                }>(stream3);
+                expect(stream3).toEqual({
+                    data: [1, 2, [3, 4, 5, 6, 7, 8, 9]],
+                    errors: [],
+                });
             });
         });
 
