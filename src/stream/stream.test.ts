@@ -593,7 +593,7 @@ describe("ArrayStream", () => {
             [1, 2, 3, 4, 5, 6, 7, 8, 9],
             new Settler()
         ).count();
-        assertType<{ data: number | null; errors: Error[] }>(stream3);
+        assertType<{ data: number | null; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: 9,
             errors: [],
@@ -639,7 +639,7 @@ describe("ArrayStream", () => {
             [1, 2, 3, 4, 5, 6, 7, 8, 9],
             new Settler()
         ).nth(2);
-        assertType<{ data: number | null; errors: Error[] }>(stream3);
+        assertType<{ data: number | null; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: 3,
             errors: [],
@@ -662,7 +662,7 @@ describe("ArrayStream", () => {
         expect(stream2).toEqual([1, 2, [3, 4, 5, 6, 7, 8, 9]]);
 
         const stream3 = new ArrayStream(arr, new Settler()).flat();
-        assertType<{ data: FlatArray<typeof arr, 1>[]; errors: Error[] }>(
+        assertType<{ data: FlatArray<typeof arr, 1>[]; errors: string[] }>(
             stream3
         );
         expect(stream3).toEqual({
@@ -706,7 +706,7 @@ describe("ArrayStream", () => {
             [1, 2, 3, 4, 5, 6, 7, 8, 9],
             new Settler()
         ).partition((x) => x % 2 === 0);
-        assertType<{ data: [number[], number[]]; errors: Error[] }>(stream3);
+        assertType<{ data: [number[], number[]]; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: [
                 [2, 4, 6, 8],
@@ -769,7 +769,7 @@ describe("ArrayStream", () => {
             [1, 2, 3, 4, 5, 6, 7, 8, 9],
             new Settler()
         ).any((x) => x % 2 === 0);
-        assertType<{ data: boolean; errors: Error[] }>(stream3);
+        assertType<{ data: boolean; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: true,
             errors: [],
@@ -816,7 +816,7 @@ describe("ArrayStream", () => {
             [1, 2, 3, 4, 5, 6, 7, 8, 9],
             new Settler()
         ).all((x) => x % 2 === 0);
-        assertType<{ data: boolean; errors: Error[] }>(stream3);
+        assertType<{ data: boolean; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: false,
             errors: [],
@@ -861,7 +861,7 @@ describe("ArrayStream", () => {
         const stream3 = new ArrayStream(["a", "b", "c"], new Settler()).find(
             (x) => x === "b"
         );
-        assertType<{ data: string | null; errors: Error[] }>(stream3);
+        assertType<{ data: string | null; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: "b",
             errors: [],
@@ -923,7 +923,7 @@ describe("ArrayStream", () => {
             [1, 2, 3, 4, 5, 6, 7, 8, 9],
             new Settler()
         ).findIndex((x) => x % 2 === 0);
-        assertType<{ data: number; errors: Error[] }>(stream3);
+        assertType<{ data: number; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: 1,
             errors: [],
@@ -974,7 +974,7 @@ describe("ArrayStream", () => {
             ["a", "b", "c"],
             new Settler()
         ).findLast((x) => x === "b");
-        assertType<{ data: string | null; errors: Error[] }>(stream3);
+        assertType<{ data: string | null; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: "b",
             errors: [],
@@ -1025,7 +1025,7 @@ describe("ArrayStream", () => {
             ["a", "b", "c"],
             new Settler()
         ).findLastIndex((x) => x === "b");
-        assertType<{ data: number; errors: Error[] }>(stream3);
+        assertType<{ data: number; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: 1,
             errors: [],
@@ -1067,7 +1067,7 @@ describe("ArrayStream", () => {
             ["a", "b", "c"],
             new Settler()
         ).includes("b");
-        assertType<{ data: boolean; errors: Error[] }>(stream3);
+        assertType<{ data: boolean; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: true,
             errors: [],
@@ -1137,7 +1137,7 @@ describe("ArrayStream", () => {
             (acc, next) => acc + next,
             ""
         );
-        assertType<{ data: string; errors: Error[] }>(stream3);
+        assertType<{ data: string; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: "abc",
             errors: [],
@@ -1185,7 +1185,7 @@ describe("ArrayStream", () => {
             ["a", "b", "c"],
             new Settler()
         ).reduceRight((acc, next) => acc + next, "");
-        assertType<{ data: string; errors: Error[] }>(stream3);
+        assertType<{ data: string; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: "cba",
             errors: [],
@@ -1210,7 +1210,7 @@ describe("ArrayStream", () => {
             ["a", "b", "c"],
             new Settler()
         ).collect();
-        assertType<{ data: string[]; errors: Error[] }>(stream3);
+        assertType<{ data: string[]; errors: string[] }>(stream3);
         expect(stream3).toEqual({
             data: ["a", "b", "c"],
             errors: [],
@@ -1305,23 +1305,15 @@ describe("ArrayStream", () => {
         });
         const data = stream.collect();
         expect(settler.errors).toEqual([
-            new Error(
-                "Error occurred while performing map on 2 at index 1 in iterator: Op Error"
-            ),
-            new Error(
-                "Error occurred at item at index 2 in iterator: Cycle Error"
-            ),
+            "Error occurred while performing map on 2 at index 1 in iterator: Op Error",
+            "Error occurred at item at index 2 in iterator: Cycle Error",
         ]);
 
         expect(data).toEqual({
             data: [2],
             errors: [
-                new Error(
-                    "Error occurred while performing map on 2 at index 1 in iterator: Op Error"
-                ),
-                new Error(
-                    "Error occurred at item at index 2 in iterator: Cycle Error"
-                ),
+                "Error occurred while performing map on 2 at index 1 in iterator: Op Error",
+                "Error occurred at item at index 2 in iterator: Cycle Error",
             ],
         });
     });

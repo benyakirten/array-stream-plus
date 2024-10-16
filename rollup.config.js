@@ -14,7 +14,7 @@ export default [
                 tsconfig: "./tsconfig.json",
                 declaration: true,
                 declarationDir: "dist/types",
-                exclude: ["benchmark/**", "**/*.test.ts"],
+                exclude: ["benchmark/**", "**/*.test.ts", "vitest.config.ts"],
             }),
         ],
     },
@@ -28,7 +28,7 @@ export default [
             typescript({
                 tsconfig: "./tsconfig.json",
                 declaration: false,
-                exclude: ["benchmark/**", "**/*.test.ts"],
+                exclude: ["benchmark/**", "**/*.test.ts", "vitest.config.ts"],
             }),
             terser(),
             gzipPlugin(),

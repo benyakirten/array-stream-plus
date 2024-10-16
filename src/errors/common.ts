@@ -1,11 +1,11 @@
-export function processError(e: unknown, prefix: string): Error {
+export function processError(e: unknown, prefix: string): string {
     if (e instanceof Error) {
-        return new Error(`${prefix}: ${e.message}`);
+        return `${prefix}: ${e.message}`;
     } else if (typeof e === "string") {
-        return new Error(`${prefix}: ${e}`);
+        return `${prefix}: ${e}`;
     } else if (e !== null && typeof e === "object") {
-        return new Error(`${prefix}: ${e.toString()}`);
+        return `${prefix}: ${e.toString()}`;
     } else {
-        return new Error(`${prefix}: ${JSON.stringify(e)}`);
+        return `${prefix}: ${JSON.stringify(e)}`;
     }
 }

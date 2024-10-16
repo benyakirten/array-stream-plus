@@ -940,7 +940,7 @@ describe("AsyncArrayStream", () => {
                     ["a", "b", "c"],
                     new Settler()
                 ).reduce((acc, next) => acc + next, "");
-                assertType<{ data: string; errors: Error[] }>(stream3);
+                assertType<{ data: string; errors: string[] }>(stream3);
                 expect(stream3).toEqual({
                     data: "abc",
                     errors: [],
@@ -983,7 +983,7 @@ describe("AsyncArrayStream", () => {
                     ["a", "b", "c"],
                     new Settler()
                 ).reduceRight((acc, next) => acc + next, "");
-                assertType<{ data: string; errors: Error[] }>(stream3);
+                assertType<{ data: string; errors: string[] }>(stream3);
                 expect(stream3).toEqual({
                     data: "cba",
                     errors: [],
@@ -1022,7 +1022,7 @@ describe("AsyncArrayStream", () => {
                 ).flat();
                 assertType<{
                     data: FlatArray<typeof arr, 1>[];
-                    errors: Error[];
+                    errors: string[];
                 }>(stream3);
                 expect(stream3).toEqual({
                     data: [1, 2, [3, 4, 5, 6, 7, 8, 9]],
@@ -1073,7 +1073,7 @@ describe("AsyncArrayStream", () => {
                     [1, 2, 3, 4, 5, 6, 7, 8, 9],
                     new Settler()
                 ).any((x) => x % 2 === 0);
-                assertType<{ data: boolean; errors: Error[] }>(stream3);
+                assertType<{ data: boolean; errors: string[] }>(stream3);
                 expect(stream3).toEqual({
                     data: true,
                     errors: [],
@@ -1123,7 +1123,7 @@ describe("AsyncArrayStream", () => {
                     [1, 2, 3, 4, 5, 6, 7, 8, 9],
                     new Settler()
                 ).all((x) => x % 2 === 0);
-                assertType<{ data: boolean; errors: Error[] }>(stream3);
+                assertType<{ data: boolean; errors: string[] }>(stream3);
                 expect(stream3).toEqual({
                     data: false,
                     errors: [],
@@ -1178,7 +1178,7 @@ describe("AsyncArrayStream", () => {
                     ["a", "b", "c"],
                     new Settler()
                 ).find((x) => x === "b");
-                assertType<{ data: string | null; errors: Error[] }>(stream3);
+                assertType<{ data: string | null; errors: string[] }>(stream3);
                 expect(stream3).toEqual({
                     data: "b",
                     errors: [],
@@ -1272,7 +1272,7 @@ describe("AsyncArrayStream", () => {
                     ["a", "b", "c"],
                     new Settler()
                 ).findLast((x) => x === "b");
-                assertType<{ data: string | null; errors: Error[] }>(stream3);
+                assertType<{ data: string | null; errors: string[] }>(stream3);
                 expect(stream3).toEqual({
                     data: "b",
                     errors: [],
@@ -1328,7 +1328,7 @@ describe("AsyncArrayStream", () => {
                     ["a", "b", "c"],
                     new Settler()
                 ).findLastIndex((x) => x === "b");
-                assertType<{ data: number; errors: Error[] }>(stream3);
+                assertType<{ data: number; errors: string[] }>(stream3);
                 expect(stream3).toEqual({
                     data: 1,
                     errors: [],
@@ -1369,7 +1369,7 @@ describe("AsyncArrayStream", () => {
                     ["a", "b", "c"],
                     new Settler()
                 ).includes("b");
-                assertType<{ data: boolean; errors: Error[] }>(stream3);
+                assertType<{ data: boolean; errors: string[] }>(stream3);
                 expect(stream3).toEqual({
                     data: true,
                     errors: [],
@@ -1417,7 +1417,7 @@ describe("AsyncArrayStream", () => {
                     [1, 2, 3, 4, 5, 6, 7, 8, 9],
                     new Settler()
                 ).partition((x) => x % 2 === 0);
-                assertType<{ data: [number[], number[]]; errors: Error[] }>(
+                assertType<{ data: [number[], number[]]; errors: string[] }>(
                     stream3
                 );
                 expect(stream3).toEqual({
@@ -1459,7 +1459,7 @@ describe("AsyncArrayStream", () => {
                     ["a", "b", "c"],
                     new Settler()
                 ).collect();
-                assertType<{ data: string[]; errors: Error[] }>(stream3);
+                assertType<{ data: string[]; errors: string[] }>(stream3);
                 expect(stream3).toEqual({
                     data: ["a", "b", "c"],
                     errors: [],
@@ -1607,23 +1607,15 @@ describe("AsyncArrayStream", () => {
             });
             const data = await stream.collect();
             expect(settler.errors).toEqual([
-                new Error(
-                    "Error occurred while performing map on 2 at index 1 in iterator: Op Error"
-                ),
-                new Error(
-                    "Error occurred at item at index 2 in iterator: Cycle Error"
-                ),
+                "Error occurred while performing map on 2 at index 1 in iterator: Op Error",
+                "Error occurred at item at index 2 in iterator: Cycle Error",
             ]);
 
             expect(data).toEqual({
                 data: [2],
                 errors: [
-                    new Error(
-                        "Error occurred while performing map on 2 at index 1 in iterator: Op Error"
-                    ),
-                    new Error(
-                        "Error occurred at item at index 2 in iterator: Cycle Error"
-                    ),
+                    "Error occurred while performing map on 2 at index 1 in iterator: Op Error",
+                    "Error occurred at item at index 2 in iterator: Cycle Error",
                 ],
             });
         });

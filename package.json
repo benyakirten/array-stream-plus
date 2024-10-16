@@ -46,7 +46,7 @@
         "typescript": "^5.6.2"
     },
     "scripts": {
-        "build": "rimraf dist && rimraf compiled.js.gz && rollup -c -m && rimraf compiled.js && rimraf **/*.js.map && rimraf *.js.map",
+        "build": "rimraf dist && rimraf compiled.js.gz && rollup -c -m && rimraf compiled.js && rimraf *.js.map",
         "format:check": "prettier src/**/*.ts --check",
         "format:fix": "prettier src/**/*.ts --write",
         "lint:check": "eslint src/**/*.ts",

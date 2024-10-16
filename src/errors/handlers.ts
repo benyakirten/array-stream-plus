@@ -11,12 +11,14 @@ export class Breaker<Input>
 {
     registerCycleError(error: unknown, index: number) {
         const prefix = `Error occurred at item at index ${index} in iterator`;
-        throw processError(error, prefix);
+        const errMessage = processError(error, prefix);
+        throw new Error(errMessage);
     }
 
     registerOpError(error: unknown, index: number, item: Input, op: string) {
         const prefix = `Error occurred while performing ${op} on ${item} at index ${index} in iterator`;
-        throw processError(error, prefix);
+        const errMessage = processError(error, prefix);
+        throw new Error(errMessage);
     }
     compile<Data>(data: Data): BreakerOutput<Data> {
         return data;
@@ -27,11 +29,11 @@ export class Breaker<Input>
  * Error handler that collects all errors during the pipeline execution.
  * Compiling the data will return the data along with the errors.
  */
-export type SettlerOutput<T> = { data: T; errors: Error[] };
+export type SettlerOutput<T> = { data: T; errors: string[] };
 export class Settler<Input>
     implements ErrorHandler<Input, SettlerOutput<unknown>>
 {
-    errors: Error[] = [];
+    errors: string[] = [];
 
     registerCycleError(error: unknown, index: number) {
         const prefix = `Error occurred at item at index ${index} in iterator`;

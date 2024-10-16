@@ -44,7 +44,7 @@ describe("Settler", () => {
         settler.registerCycleError(error, index);
 
         expect(settler.errors).toHaveLength(1);
-        expect(settler.errors[0].message).toBe(
+        expect(settler.errors[0]).toBe(
             `Error occurred at item at index ${index} in iterator: test error`
         );
     });
@@ -59,7 +59,7 @@ describe("Settler", () => {
         settler.registerOpError(error, index, item, op);
 
         expect(settler.errors).toHaveLength(1);
-        expect(settler.errors[0].message).toBe(
+        expect(settler.errors[0]).toBe(
             `Error occurred while performing ${op} on ${item} at index ${index} in iterator: test error`
         );
     });
@@ -77,10 +77,10 @@ describe("Settler", () => {
 
         expect(result.data).toEqual(data);
         expect(result.errors).toHaveLength(2);
-        expect(result.errors[0].message).toBe(
+        expect(result.errors[0]).toBe(
             `Error occurred at item at index ${index} in iterator: test error`
         );
-        expect(result.errors[1].message).toBe(
+        expect(result.errors[1]).toBe(
             `Error occurred while performing test op on ${data} at index ${index} in iterator: test error`
         );
     });
