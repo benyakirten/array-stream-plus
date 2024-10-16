@@ -8,7 +8,6 @@ export default [
         output: {
             file: "dist/index.js",
             format: "esm",
-            sourcemap: false,
         },
         plugins: [
             typescript({
@@ -16,7 +15,6 @@ export default [
                 declaration: true,
                 declarationDir: "dist/types",
                 exclude: ["benchmark/**", "**/*.test.ts"],
-                sourceMap: false,
             }),
         ],
     },
@@ -25,14 +23,12 @@ export default [
         output: {
             file: "compiled.js",
             format: "esm",
-            sourcemap: false,
         },
         plugins: [
             typescript({
                 tsconfig: "./tsconfig.json",
                 declaration: false,
                 exclude: ["benchmark/**", "**/*.test.ts"],
-                sourceMap: false,
             }),
             terser(),
             gzipPlugin(),
