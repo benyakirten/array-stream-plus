@@ -1051,8 +1051,33 @@ describe("AsyncArrayStream", () => {
 
                 expect(spy).toHaveBeenCalledWith(1);
                 expect(spy).toHaveBeenCalledWith(2);
+            });
 
-                // TODO: Find out why all of the iterator is exhausted
+            it("should return the correct type based on the error handler", async () => {
+                const stream = await new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9,
+                ])
+                    .map((x) => ({ x }))
+                    .any((x) => x.x % 2 === 0);
+                assertType<boolean>(stream);
+                expect(stream).toEqual(true);
+
+                const stream2 = await new AsyncArrayStream(
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    new Ignorer()
+                ).any((x) => x % 2 === 0);
+                assertType<boolean>(stream2);
+                expect(stream2).toEqual(true);
+
+                const stream3 = await new AsyncArrayStream(
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    new Settler()
+                ).any((x) => x % 2 === 0);
+                assertType<{ data: boolean; errors: Error[] }>(stream3);
+                expect(stream3).toEqual({
+                    data: true,
+                    errors: [],
+                });
             });
         });
 
@@ -1076,8 +1101,33 @@ describe("AsyncArrayStream", () => {
 
                 expect(spy).toHaveBeenCalledWith(1);
                 expect(spy).toHaveBeenCalledWith(2);
+            });
 
-                // TODO: Find out why all of the iterator is exhausted
+            it("should return the correct type based on the error handler", async () => {
+                const stream = await new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9,
+                ])
+                    .map((x) => ({ x }))
+                    .all((x) => x.x % 2 === 0);
+                assertType<boolean>(stream);
+                expect(stream).toEqual(false);
+
+                const stream2 = await new AsyncArrayStream(
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    new Ignorer()
+                ).all((x) => x % 2 === 0);
+                assertType<boolean>(stream2);
+                expect(stream2).toEqual(false);
+
+                const stream3 = await new AsyncArrayStream(
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    new Settler()
+                ).all((x) => x % 2 === 0);
+                assertType<{ data: boolean; errors: Error[] }>(stream3);
+                expect(stream3).toEqual({
+                    data: false,
+                    errors: [],
+                });
             });
         });
 
@@ -1108,6 +1158,31 @@ describe("AsyncArrayStream", () => {
 
                 expect(spy).toHaveBeenCalledWith(1);
                 expect(spy).toHaveBeenCalledWith(2);
+            });
+
+            it("should return the correct type based on the error handler", async () => {
+                const stream = await new AsyncArrayStream(["a", "b", "c"])
+                    .map((x) => ({ x }))
+                    .find((x) => x.x === "b");
+                assertType<{ x: string } | null>(stream);
+                expect(stream).toEqual({ x: "b" });
+
+                const stream2 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Ignorer()
+                ).find((x) => x === "b");
+                assertType<string | null>(stream2);
+                expect(stream2).toEqual("b");
+
+                const stream3 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Settler()
+                ).find((x) => x === "b");
+                assertType<{ data: string | null; errors: Error[] }>(stream3);
+                expect(stream3).toEqual({
+                    data: "b",
+                    errors: [],
+                });
             });
         });
 
@@ -1163,6 +1238,46 @@ describe("AsyncArrayStream", () => {
                 const result = await stream.findLast(async (x) => x === 4);
                 expect(result).toBe(null);
             });
+
+            it("should only test items until the first item that matches", async () => {
+                const input = [1, 2, 3, 4, 5];
+                const findLastSpy = vi.fn();
+                const stream = new AsyncArrayStream(input);
+                const result = await stream.findLast(async (x) => {
+                    findLastSpy(x);
+                    return x === 4;
+                });
+                expect(result).toBe(4);
+                expect(findLastSpy).toHaveBeenCalledTimes(2);
+
+                expect(findLastSpy).toHaveBeenCalledWith(5);
+                expect(findLastSpy).toHaveBeenCalledWith(4);
+            });
+
+            it("should return the correct type based on the error handler", async () => {
+                const stream = await new AsyncArrayStream(["a", "b", "c"])
+                    .map((x) => ({ x }))
+                    .findLast((x) => x.x === "b");
+                assertType<{ x: string } | null>(stream);
+                expect(stream).toEqual({ x: "b" });
+
+                const stream2 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Ignorer()
+                ).findLast((x) => x === "b");
+                assertType<string | null>(stream2);
+                expect(stream2).toEqual("b");
+
+                const stream3 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Settler()
+                ).findLast((x) => x === "b");
+                assertType<{ data: string | null; errors: Error[] }>(stream3);
+                expect(stream3).toEqual({
+                    data: "b",
+                    errors: [],
+                });
+            });
         });
 
         describe("findLastIndex", () => {
@@ -1171,6 +1286,53 @@ describe("AsyncArrayStream", () => {
                 const stream = new AsyncArrayStream(input);
                 const result = await stream.findLastIndex(async (x) => x === 2);
                 expect(result).toBe(3);
+            });
+
+            it("should return -1 if the item is not found", async () => {
+                const input = [1, 2, 3];
+                const stream = new AsyncArrayStream(input);
+                const result = await stream.findLastIndex(async (x) => x === 4);
+                expect(result).toBe(-1);
+            });
+
+            it("should only test items until the first item that matches", async () => {
+                const input = [1, 2, 3, 4, 5];
+                const findLastIndexSpy = vi.fn();
+                const stream = new AsyncArrayStream(input);
+                const result = await stream.findLastIndex(async (x) => {
+                    findLastIndexSpy(x);
+                    return x === 4;
+                });
+                expect(result).toBe(3);
+                expect(findLastIndexSpy).toHaveBeenCalledTimes(2);
+
+                expect(findLastIndexSpy).toHaveBeenCalledWith(5);
+                expect(findLastIndexSpy).toHaveBeenCalledWith(4);
+            });
+
+            it("should return the correct type based on the error handler", async () => {
+                const stream = await new AsyncArrayStream(["a", "b", "c"])
+                    .map((x) => ({ x }))
+                    .findLastIndex((x) => x.x === "b");
+                assertType<number>(stream);
+                expect(stream).toEqual(1);
+
+                const stream2 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Ignorer()
+                ).findLastIndex((x) => x === "b");
+                assertType<number>(stream2);
+                expect(stream2).toEqual(1);
+
+                const stream3 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Settler()
+                ).findLastIndex((x) => x === "b");
+                assertType<{ data: number; errors: Error[] }>(stream3);
+                expect(stream3).toEqual({
+                    data: 1,
+                    errors: [],
+                });
             });
         });
 
@@ -1188,6 +1350,31 @@ describe("AsyncArrayStream", () => {
                 const result = await stream.includes(4);
                 expect(result).toBe(false);
             });
+
+            it("should return the correct type based on the error handler", async () => {
+                const stream = await new AsyncArrayStream(["a", "b", "c"])
+                    .map((x) => x.charCodeAt(0))
+                    .includes("b".charCodeAt(0));
+                assertType<boolean>(stream);
+                expect(stream).toEqual(true);
+
+                const stream2 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Ignorer()
+                ).includes("b");
+                assertType<boolean>(stream2);
+                expect(stream2).toEqual(true);
+
+                const stream3 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Settler()
+                ).includes("b");
+                assertType<{ data: boolean; errors: Error[] }>(stream3);
+                expect(stream3).toEqual({
+                    data: true,
+                    errors: [],
+                });
+            });
         });
 
         describe("partition", () => {
@@ -1203,6 +1390,44 @@ describe("AsyncArrayStream", () => {
                 const rest = await stream.collect();
                 expect(rest).toEqual([]);
             });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const stream = await new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9,
+                ])
+                    .map((x) => ({ x }))
+                    .partition((x) => x.x % 2 === 0);
+                assertType<[{ x: number }[], { x: number }[]]>(stream);
+                expect(stream).toEqual([
+                    [{ x: 2 }, { x: 4 }, { x: 6 }, { x: 8 }],
+                    [{ x: 1 }, { x: 3 }, { x: 5 }, { x: 7 }, { x: 9 }],
+                ]);
+
+                const stream2 = await new AsyncArrayStream(
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    new Ignorer()
+                ).partition((x) => x % 2 === 0);
+                assertType<[number[], number[]]>(stream2);
+                expect(stream2).toEqual([
+                    [2, 4, 6, 8],
+                    [1, 3, 5, 7, 9],
+                ]);
+
+                const stream3 = await new AsyncArrayStream(
+                    [1, 2, 3, 4, 5, 6, 7, 8, 9],
+                    new Settler()
+                ).partition((x) => x % 2 === 0);
+                assertType<{ data: [number[], number[]]; errors: Error[] }>(
+                    stream3
+                );
+                expect(stream3).toEqual({
+                    data: [
+                        [2, 4, 6, 8],
+                        [1, 3, 5, 7, 9],
+                    ],
+                    errors: [],
+                });
+            });
         });
 
         describe("collect", () => {
@@ -1214,6 +1439,31 @@ describe("AsyncArrayStream", () => {
 
                 const rest = await stream.collect();
                 expect(rest).toEqual([]);
+            });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const stream = await new AsyncArrayStream(["a", "b", "c"])
+                    .map((x) => ({ x }))
+                    .collect();
+                assertType<{ x: string }[]>(stream);
+                expect(stream).toEqual([{ x: "a" }, { x: "b" }, { x: "c" }]);
+
+                const stream2 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Ignorer()
+                ).collect();
+                assertType<string[]>(stream2);
+                expect(stream2).toEqual(["a", "b", "c"]);
+
+                const stream3 = await new AsyncArrayStream(
+                    ["a", "b", "c"],
+                    new Settler()
+                ).collect();
+                assertType<{ data: string[]; errors: Error[] }>(stream3);
+                expect(stream3).toEqual({
+                    data: ["a", "b", "c"],
+                    errors: [],
+                });
             });
         });
     });
