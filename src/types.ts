@@ -73,4 +73,12 @@ export interface ErrorHandler<Input, Output> {
     compile<Data>(data: Data): Output;
 }
 
+export type RequiredHandler<Handler> = Handler extends Ignorer
+    ? Ignorer
+    : Handler extends Breaker<infer Input>
+      ? Breaker<Required<Input>>
+      : Handler extends Settler<infer SettlerInput>
+        ? Settler<Required<SettlerInput>>
+        : never;
+
 export type Constructor<T> = { new: () => T };

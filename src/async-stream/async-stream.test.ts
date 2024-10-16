@@ -182,6 +182,7 @@ describe("AsyncArrayStream", () => {
                 assertType<AsyncArrayStream<number, Ignorer>>(ignorerStream);
                 const ignorerStreamData = await ignorerStream.collect();
                 assertType<number[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([1, 2, 3]);
 
                 const settlerStream = new AsyncArrayStream(
                     [1, 2, 3],
@@ -190,8 +191,6 @@ describe("AsyncArrayStream", () => {
                 assertType<AsyncArrayStream<number, Settler<number>>>(
                     settlerStream
                 );
-                expect(ignorerStreamData).toEqual([1, 2, 3]);
-
                 const settlerStreamData = await settlerStream.collect();
                 assertType<SettlerOutput<number[]>>(settlerStreamData);
                 expect(settlerStreamData).toEqual({
@@ -249,8 +248,6 @@ describe("AsyncArrayStream", () => {
                 assertType<AsyncArrayStream<string, Settler<string>>>(
                     settlerStream
                 );
-                expect(ignorerStreamData).toEqual(["C"]);
-
                 const settlerStreamData = await settlerStream.collect();
                 assertType<SettlerOutput<string[]>>(settlerStreamData);
                 expect(settlerStreamData).toEqual({
@@ -302,6 +299,46 @@ describe("AsyncArrayStream", () => {
                 expect(spy).toHaveBeenCalledTimes(3);
                 expect(spy2).toHaveBeenCalledTimes(3);
             });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                async function* gen() {
+                    let count = 0;
+                    while (true) {
+                        yield count++;
+                    }
+                }
+
+                const breakerStream = new AsyncArrayStream(gen()).take(2);
+                assertType<AsyncArrayStream<number, Breaker<number>>>(
+                    breakerStream
+                );
+                const breakerStreamData = await breakerStream.collect();
+                assertType<number[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([0, 1]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    gen(),
+                    new Ignorer()
+                ).take(2);
+                assertType<AsyncArrayStream<number, Ignorer>>(ignorerStream);
+                const ignorerStreamData = await ignorerStream.collect();
+                assertType<number[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([0, 1]);
+
+                const settlerStream = new AsyncArrayStream(
+                    gen(),
+                    new Settler()
+                ).take(2);
+                assertType<AsyncArrayStream<number, Settler<number>>>(
+                    settlerStream
+                );
+                const settlerStreamData = await settlerStream.collect();
+                assertType<SettlerOutput<number[]>>(settlerStreamData);
+                expect(settlerStreamData).toEqual({
+                    data: [0, 1],
+                    errors: [],
+                });
+            });
         });
 
         describe("skip", () => {
@@ -311,15 +348,95 @@ describe("AsyncArrayStream", () => {
                 const result = await stream.collect();
                 expect(result).toEqual([3, 4, 5]);
             });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                async function* gen() {
+                    let count = 0;
+                    while (true) {
+                        yield count++;
+                    }
+                }
+
+                const breakerStream = new AsyncArrayStream(gen()).skip(2);
+                assertType<AsyncArrayStream<number, Breaker<number>>>(
+                    breakerStream
+                );
+                const breakerStreamData = await breakerStream.take(2).collect();
+                assertType<number[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([2, 3]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    gen(),
+                    new Ignorer()
+                ).skip(2);
+                assertType<AsyncArrayStream<number, Ignorer>>(ignorerStream);
+                const ignorerStreamData = await ignorerStream.take(2).collect();
+                assertType<number[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([2, 3]);
+
+                const settlerStream = new AsyncArrayStream(
+                    gen(),
+                    new Settler()
+                ).skip(2);
+                assertType<AsyncArrayStream<number, Settler<number>>>(
+                    settlerStream
+                );
+                const settlerStreamData = await settlerStream.take(2).collect();
+                assertType<SettlerOutput<number[]>>(settlerStreamData);
+                expect(settlerStreamData).toEqual({
+                    data: [2, 3],
+                    errors: [],
+                });
+            });
         });
 
-        describe("step", () => {
+        describe("stepBy", () => {
             it("should yield every nth item", async () => {
                 const input = [1, 2, 3, 4, 5, 6];
                 const got = await new AsyncArrayStream(input)
                     .stepBy(2)
                     .collect();
                 expect(got).toEqual([1, 3, 5]);
+            });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                async function* gen() {
+                    let count = 0;
+                    while (true) {
+                        yield count++;
+                    }
+                }
+
+                const breakerStream = new AsyncArrayStream(gen()).stepBy(2);
+                assertType<AsyncArrayStream<number, Breaker<number>>>(
+                    breakerStream
+                );
+                const breakerStreamData = await breakerStream.take(2).collect();
+                assertType<number[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([0, 2]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    gen(),
+                    new Ignorer()
+                ).stepBy(2);
+                assertType<AsyncArrayStream<number, Ignorer>>(ignorerStream);
+                const ignorerStreamData = await ignorerStream.take(2).collect();
+                assertType<number[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([0, 2]);
+
+                const settlerStream = new AsyncArrayStream(
+                    gen(),
+                    new Settler()
+                ).stepBy(2);
+                assertType<AsyncArrayStream<number, Settler<number>>>(
+                    settlerStream
+                );
+                const settlerStreamData = await settlerStream.take(2).collect();
+                assertType<SettlerOutput<number[]>>(settlerStreamData);
+                expect(settlerStreamData).toEqual({
+                    data: [0, 2],
+                    errors: [],
+                });
             });
         });
 
@@ -330,6 +447,47 @@ describe("AsyncArrayStream", () => {
                 const stream = new AsyncArrayStream(input1).chain(input2);
                 const result = await stream.collect();
                 expect(result).toEqual([1, 2, 3, 4, 5, 6]);
+            });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = new AsyncArrayStream([1, 2, 3]).chain([
+                    "A",
+                    "B",
+                    "C",
+                ]);
+                assertType<
+                    AsyncArrayStream<number | string, Breaker<number | string>>
+                >(breakerStream);
+                const breakerStreamData = await breakerStream.collect();
+                assertType<(number | string)[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([1, 2, 3, "A", "B", "C"]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Ignorer()
+                ).chain(["A", "B", "C"]);
+                assertType<AsyncArrayStream<number | string, Ignorer>>(
+                    ignorerStream
+                );
+                const ignorerStreamData = await ignorerStream.collect();
+                assertType<(number | string)[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([1, 2, 3, "A", "B", "C"]);
+
+                const settlerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Settler()
+                ).chain(["A", "B", "C"]);
+                assertType<
+                    AsyncArrayStream<number | string, Settler<number | string>>
+                >(settlerStream);
+                const settlerStreamData = await settlerStream.collect();
+                assertType<SettlerOutput<(number | string)[]>>(
+                    settlerStreamData
+                );
+                expect(settlerStreamData).toEqual({
+                    data: [1, 2, 3, "A", "B", "C"],
+                    errors: [],
+                });
             });
         });
 
@@ -358,6 +516,45 @@ describe("AsyncArrayStream", () => {
                 );
                 const result = await stream.collect();
                 expect(result).toEqual([1, 101, 2, 102, 3]);
+            });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = new AsyncArrayStream([
+                    1, 2, 3,
+                ]).intersperse((x) => String.fromCharCode(x + 64));
+                assertType<
+                    AsyncArrayStream<number | string, Breaker<number | string>>
+                >(breakerStream);
+                const breakerStreamData = await breakerStream.collect();
+                assertType<(number | string)[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([1, "A", 2, "B", 3]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Ignorer()
+                ).intersperse((x) => String.fromCharCode(x + 64));
+                assertType<AsyncArrayStream<number | string, Ignorer>>(
+                    ignorerStream
+                );
+                const ignorerStreamData = await ignorerStream.collect();
+                assertType<(number | string)[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([1, "A", 2, "B", 3]);
+
+                const settlerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Settler()
+                ).intersperse((x) => String.fromCharCode(x + 64));
+                assertType<
+                    AsyncArrayStream<number | string, Settler<number | string>>
+                >(settlerStream);
+                const settlerStreamData = await settlerStream.collect();
+                assertType<SettlerOutput<(number | string)[]>>(
+                    settlerStreamData
+                );
+                expect(settlerStreamData).toEqual({
+                    data: [1, "A", 2, "B", 3],
+                    errors: [],
+                });
             });
         });
 
@@ -391,6 +588,65 @@ describe("AsyncArrayStream", () => {
                     ["b", 200],
                 ]);
             });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = new AsyncArrayStream([1, 2, 3]).zip([
+                    "A",
+                    "B",
+                    "C",
+                ]);
+                assertType<
+                    AsyncArrayStream<
+                        [number, string],
+                        Breaker<[number, string]>
+                    >
+                >(breakerStream);
+                const breakerStreamData = await breakerStream.collect();
+                assertType<[number, string][]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([
+                    [1, "A"],
+                    [2, "B"],
+                    [3, "C"],
+                ]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Ignorer()
+                ).zip(["A", "B", "C"]);
+                assertType<AsyncArrayStream<[number, string], Ignorer>>(
+                    ignorerStream
+                );
+                const ignorerStreamData = await ignorerStream.collect();
+                assertType<[number, string][]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([
+                    [1, "A"],
+                    [2, "B"],
+                    [3, "C"],
+                ]);
+
+                const settlerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Settler()
+                ).zip(["A", "B", "C"]);
+                assertType<
+                    AsyncArrayStream<
+                        [number, string],
+                        Settler<[number, string]>
+                    >
+                >(settlerStream);
+                const settlerStreamData = await settlerStream.collect();
+                assertType<SettlerOutput<[number, string][]>>(
+                    settlerStreamData
+                );
+                expect(settlerStreamData).toEqual({
+                    data: [
+                        [1, "A"],
+                        [2, "B"],
+                        [3, "C"],
+                    ],
+                    errors: [],
+                });
+            });
         });
 
         describe("enumerate", () => {
@@ -404,6 +660,65 @@ describe("AsyncArrayStream", () => {
                     [2, "c"],
                 ]);
             });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = new AsyncArrayStream([
+                    "A",
+                    "B",
+                    "C",
+                ]).enumerate();
+                assertType<
+                    AsyncArrayStream<
+                        [number, string],
+                        Breaker<[number, string]>
+                    >
+                >(breakerStream);
+                const breakerStreamData = await breakerStream.collect();
+                assertType<[number, string][]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([
+                    [0, "A"],
+                    [1, "B"],
+                    [2, "C"],
+                ]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    ["A", "B", "C"],
+                    new Ignorer()
+                ).enumerate();
+                assertType<AsyncArrayStream<[number, string], Ignorer>>(
+                    ignorerStream
+                );
+                const ignorerStreamData = await ignorerStream.collect();
+                assertType<[number, string][]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([
+                    [0, "A"],
+                    [1, "B"],
+                    [2, "C"],
+                ]);
+
+                const settlerStream = new AsyncArrayStream(
+                    ["A", "B", "C"],
+                    new Settler()
+                ).enumerate();
+                assertType<
+                    AsyncArrayStream<
+                        [number, string],
+                        Settler<[number, string]>
+                    >
+                >(settlerStream);
+                const settlerStreamData = await settlerStream.collect();
+                assertType<SettlerOutput<[number, string][]>>(
+                    settlerStreamData
+                );
+                expect(settlerStreamData).toEqual({
+                    data: [
+                        [0, "A"],
+                        [1, "B"],
+                        [2, "C"],
+                    ],
+                    errors: [],
+                });
+            });
         });
 
         describe("flatMap", () => {
@@ -414,6 +729,41 @@ describe("AsyncArrayStream", () => {
                 );
                 const result = await stream.collect();
                 expect(result).toEqual([1, 101, 2, 102, 3, 103]);
+            });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = new AsyncArrayStream([1, 2, 3]).flatMap(
+                    (x) => [x, x + 100]
+                );
+                assertType<AsyncArrayStream<number, Breaker<number>>>(
+                    breakerStream
+                );
+                const breakerStreamData = await breakerStream.collect();
+                assertType<number[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([1, 101, 2, 102, 3, 103]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Ignorer()
+                ).flatMap((x) => [x, x + 100]);
+                assertType<AsyncArrayStream<number, Ignorer>>(ignorerStream);
+                const ignorerStreamData = await ignorerStream.collect();
+                assertType<number[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([1, 101, 2, 102, 3, 103]);
+
+                const settlerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Settler()
+                ).flatMap((x) => [x, x + 100]);
+                assertType<AsyncArrayStream<number, Settler<number>>>(
+                    settlerStream
+                );
+                const settlerStreamData = await settlerStream.collect();
+                assertType<SettlerOutput<number[]>>(settlerStreamData);
+                expect(settlerStreamData).toEqual({
+                    data: [1, 101, 2, 102, 3, 103],
+                    errors: [],
+                });
             });
         });
 
@@ -432,6 +782,55 @@ describe("AsyncArrayStream", () => {
                     .fuse();
                 const result = await stream.collect();
                 expect(result).toEqual([2, 4]);
+            });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = new AsyncArrayStream([
+                    1,
+                    2,
+                    3,
+                    null,
+                    5,
+                ]).fuse();
+                assertType<
+                    AsyncArrayStream<
+                        Required<number | null>,
+                        Breaker<Required<number | null>>
+                    >
+                >(breakerStream);
+                const breakerStreamData = await breakerStream.collect();
+                assertType<Required<number | null>[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([1, 2, 3]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    [1, 2, 3, null, 5],
+                    new Ignorer()
+                ).fuse();
+                assertType<AsyncArrayStream<Required<number | null>, Ignorer>>(
+                    ignorerStream
+                );
+                const ignorerStreamData = await ignorerStream.collect();
+                assertType<Required<number | null>[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([1, 2, 3]);
+
+                const settlerStream = new AsyncArrayStream(
+                    [1, 2, 3, null, 5],
+                    new Settler()
+                ).fuse();
+                assertType<
+                    AsyncArrayStream<
+                        Required<number | null>,
+                        Settler<Required<number | null>>
+                    >
+                >(settlerStream);
+                const settlerStreamData = await settlerStream.collect();
+                assertType<SettlerOutput<Required<number | null>[]>>(
+                    settlerStreamData
+                );
+                expect(settlerStreamData).toEqual({
+                    data: [1, 2, 3],
+                    errors: [],
+                });
             });
         });
     });

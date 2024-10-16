@@ -535,14 +535,30 @@ describe("ArrayStream", () => {
     });
 
     test("fuse should return the correct type based on the error handler", () => {
-        const stream1 = new ArrayStream([1, 2, 3]).fuse();
-        assertType<ArrayStream<number, Breaker<number>>>(stream1);
+        const stream1 = new ArrayStream([1, 2, 3, null, 5]).fuse();
+        assertType<
+            ArrayStream<
+                Required<number | null>,
+                Breaker<Required<number | null>>
+            >
+        >(stream1);
 
-        const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).fuse();
-        assertType<ArrayStream<number, Ignorer>>(stream2);
+        const stream2 = new ArrayStream(
+            [1, 2, 3, null, 5],
+            new Ignorer()
+        ).fuse();
+        assertType<ArrayStream<Required<number | null>, Ignorer>>(stream2);
 
-        const stream3 = new ArrayStream([1, 2, 3], new Settler()).fuse();
-        assertType<ArrayStream<number, Settler<number>>>(stream3);
+        const stream3 = new ArrayStream(
+            [1, 2, 3, null, 5],
+            new Settler()
+        ).fuse();
+        assertType<
+            ArrayStream<
+                Required<number | null>,
+                Settler<Required<number | null>>
+            >
+        >(stream3);
     });
 
     // Finalizer

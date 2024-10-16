@@ -6,6 +6,7 @@ import type {
     HandlerReturnType,
     NarrowHandlerType,
     ErrorHandler,
+    RequiredHandler,
 } from "../types";
 
 /**
@@ -466,7 +467,7 @@ export class ArrayStream<
      *   .collect();
      * console.log(stream); // [1, 2, 3, 4, 5]
      */
-    public fuse(): ArrayStream<Input, Handler> {
+    public fuse(): ArrayStream<Required<Input>, RequiredHandler<Handler>> {
         const iter = this.read();
         function* fuseGenerator() {
             for (const item of iter) {

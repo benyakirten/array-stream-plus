@@ -7,6 +7,7 @@ import type {
     ErrorHandler,
     NarrowHandlerType,
     HandlerReturnType,
+    RequiredHandler,
 } from "../types";
 
 /**
@@ -490,7 +491,7 @@ export class AsyncArrayStream<
      * // stream = [100, 200, 300]
      * ```
      */
-    public fuse(): AsyncArrayStream<Input, Handler> {
+    public fuse(): AsyncArrayStream<Required<Input>, RequiredHandler<Handler>> {
         const gen = this.read();
         async function* fuseGenerator() {
             for await (const item of gen) {
