@@ -84,6 +84,11 @@ I would be overjoyed if anyone wanted to contribute! Please check out the [Contr
 
 ## Changelog
 
+### 1.0.0
+
+-   Fix doc publishing in CI
+-   Add error handling
+
 ### 0.2.2
 
 -   Add doc publishing to CI
