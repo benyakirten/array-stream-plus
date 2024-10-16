@@ -101,6 +101,42 @@ describe("AsyncArrayStream", () => {
                     .collect();
                 expect(got).toEqual([2, 4]);
             });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = new AsyncArrayStream([1, 2, 3]).filter(
+                    (x) => x % 2 === 0
+                );
+                assertType<AsyncArrayStream<number, Breaker<number>>>(
+                    breakerStream
+                );
+                const breakerStreamData = await breakerStream.collect();
+                assertType<number[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([2]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Ignorer()
+                ).filter((x) => x % 2 === 0);
+                assertType<AsyncArrayStream<number, Ignorer>>(ignorerStream);
+                const ignorerStreamData = await ignorerStream.collect();
+                assertType<number[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual([2]);
+
+                const settlerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Settler()
+                ).filter((x) => x % 2 === 0);
+                assertType<AsyncArrayStream<number, Settler<number>>>(
+                    settlerStream
+                );
+
+                const settlerStreamData = await settlerStream.collect();
+                assertType<SettlerOutput<number[]>>(settlerStreamData);
+                expect(settlerStreamData).toEqual({
+                    data: [2],
+                    errors: [],
+                });
+            });
         });
 
         describe("forEach", () => {
@@ -127,6 +163,42 @@ describe("AsyncArrayStream", () => {
                 expect(sum).toBe(6);
                 expect(got).toEqual([1, 2, 3]);
             });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = new AsyncArrayStream([1, 2, 3]).forEach(
+                    (x) => x % 2 === 0
+                );
+                assertType<AsyncArrayStream<number, Breaker<number>>>(
+                    breakerStream
+                );
+                const breakerStreamData = await breakerStream.collect();
+                assertType<number[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual([1, 2, 3]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Ignorer()
+                ).forEach((x) => x % 2 === 0);
+                assertType<AsyncArrayStream<number, Ignorer>>(ignorerStream);
+                const ignorerStreamData = await ignorerStream.collect();
+                assertType<number[]>(ignorerStreamData);
+
+                const settlerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Settler()
+                ).forEach((x) => x % 2 === 0);
+                assertType<AsyncArrayStream<number, Settler<number>>>(
+                    settlerStream
+                );
+                expect(ignorerStreamData).toEqual([1, 2, 3]);
+
+                const settlerStreamData = await settlerStream.collect();
+                assertType<SettlerOutput<number[]>>(settlerStreamData);
+                expect(settlerStreamData).toEqual({
+                    data: [1, 2, 3],
+                    errors: [],
+                });
+            });
         });
 
         describe("filterMap", () => {
@@ -144,6 +216,47 @@ describe("AsyncArrayStream", () => {
                     .filterMap((x) => (x % 2 === 0 ? x * 2 : null))
                     .collect();
                 expect(got).toEqual([4]);
+            });
+
+            it("should correctly change the type of the stream based on the error handler", async () => {
+                const breakerStream = new AsyncArrayStream([1, 2, 3]).filterMap(
+                    (x) => (x % 2 === 0 ? String.fromCharCode(x + 65) : null)
+                );
+                assertType<AsyncArrayStream<string, Breaker<string>>>(
+                    breakerStream
+                );
+                const breakerStreamData = await breakerStream.collect();
+                assertType<string[]>(breakerStreamData);
+                expect(breakerStreamData).toEqual(["C"]);
+
+                const ignorerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Ignorer()
+                ).filterMap((x) =>
+                    x % 2 === 0 ? String.fromCharCode(x + 65) : null
+                );
+                assertType<AsyncArrayStream<string, Ignorer>>(ignorerStream);
+                const ignorerStreamData = await ignorerStream.collect();
+                assertType<string[]>(ignorerStreamData);
+                expect(ignorerStreamData).toEqual(["C"]);
+
+                const settlerStream = new AsyncArrayStream(
+                    [1, 2, 3],
+                    new Settler()
+                ).filterMap((x) =>
+                    x % 2 === 0 ? String.fromCharCode(x + 65) : null
+                );
+                assertType<AsyncArrayStream<string, Settler<string>>>(
+                    settlerStream
+                );
+                expect(ignorerStreamData).toEqual(["C"]);
+
+                const settlerStreamData = await settlerStream.collect();
+                assertType<SettlerOutput<string[]>>(settlerStreamData);
+                expect(settlerStreamData).toEqual({
+                    data: ["C"],
+                    errors: [],
+                });
             });
         });
 
