@@ -36,7 +36,7 @@ export class Breaker<Input>
      * }
      *
      * const stream = new ArrayStream(gen, new Breaker()).collect();
-     * // throws Error: Error occurred at item at index 1 in iterator: test error
+     * // throws: Error occurred at item at index 1 in iterator: test error
      * ```
      */
     registerCycleError(error: unknown, index: number) {
@@ -56,7 +56,8 @@ export class Breaker<Input>
      *     return x;
      *   })
      *   .collect()
-     * // throws Error: Error occurred while performing map on 3 at index 2 in iterator: test error
+     * // throws: Error occurred while performing map on 3 at index 2 in iterator: test error
+     * ```
      */
     registerOpError(error: unknown, index: number, item: Input, op: string) {
         const prefix = `Error occurred while performing ${op} on ${item} at index ${index} in iterator`;
@@ -103,6 +104,7 @@ export type SettlerOutput<T> = { data: T; errors: string[] };
  * //     "Error occurred while performing map on 3 at index 2 in iterator: test error"
  * //   ]
  * // }
+ * ```
  */
 export class Settler<Input>
     implements ErrorHandler<Input, SettlerOutput<unknown>>
@@ -124,6 +126,7 @@ export class Settler<Input>
      * //     "Error occurred at item at index 1 in iterator: test error",
      * //   ]
      * // }
+     * ```
      */
     registerCycleError(error: unknown, index: number) {
         const prefix = `Error occurred at item at index ${index} in iterator`;
@@ -148,6 +151,7 @@ export class Settler<Input>
      * //     "Error occurred while performing map on 3 at index 2 in iterator: test error"
      * //   ]
      * // }
+     * ```
      */
     registerOpError(error: unknown, index: number, item: Input, op: string) {
         const prefix = `Error occurred while performing ${op} on ${item} at index ${index} in iterator`;
@@ -181,6 +185,7 @@ export class Settler<Input>
  *   })
  *   .collect();
  * // [1]
+ * ```
  */
 export class Ignorer implements ErrorHandler<unknown, BreakerOutput<unknown>> {
     /**
