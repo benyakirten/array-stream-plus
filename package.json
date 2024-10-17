@@ -17,8 +17,11 @@
     "readme": "README.md",
     "description": "A library for working with arrays in a functional way motivated by Rust iterators.",
     "license": "MIT",
-    "repository": "github:benyakirten/array-stream-plus",
-    "homepage": "https://benyakirten.github.io/array-stream-plus/",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/benyakirten/array-stream-plus.git"
+    },
+    "homepage": "https://benyakirten.github.io/array-stream-plus",
     "bugs": {
         "url": "https://github.com/benyakirten/array-stream-plus/issues"
     },

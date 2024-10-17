@@ -84,6 +84,10 @@ I would be overjoyed if anyone wanted to contribute! Please check out the [Contr
 
 ## Changelog
 
+### 1.0.1
+
+-   Add docstrings for the error handlers
+
 ### 1.0.0
 
 -   Fix doc publishing in CI
