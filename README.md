@@ -3,14 +3,6 @@
 
 # Array Stream Plus
 
-## Installation
-
-```bash
-npm install array-stream-plus
-```
-
-That was easy, wasn't it?
-
 ## The Array Stream
 
 Tired of how few methods are available for JavaScript arrays? Missing Rust iterators or Elixir enumerables and streams? Want a package with no dependencies and a small footprint. It's 1.8kb gzipped and minified (and it's tree shakeable too!). If you're wondering why NPM is saying more, it's for the source map and types, which you hopefully won't be shipping to clients.
@@ -81,6 +73,12 @@ A writeup of benchmarks is available [here](./BENCHMARK.md). The conclusion: use
 ## Contributing
 
 I would be overjoyed if anyone wanted to contribute! Please check out the [Contribution Guide](./CONTRIBUTING.md) to get started.
+
+## Links
+
+[Repository](https://github.com/benyakirten/array-stream-plus)
+
+[Docs](https://benyakirten.github.io/array-stream-plus/)
 
 ## Changelog
 
