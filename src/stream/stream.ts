@@ -107,6 +107,12 @@ export class ArrayStream<
     public map<End>(
         fn: (input: Input) => End
     ): ArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
+        if ("map" in this.input) {
+            // @ts-expect-error: TypeScript gonna typescript
+            this.input = this.input.map(fn);
+            // @ts-expect-error: TypeScript gonna typescript
+            return this;
+        }
         this.ops.push({
             type: "map",
             op: fn as Op["op"],
@@ -128,6 +134,11 @@ export class ArrayStream<
      * ```
      */
     public filter(fn: (input: Input) => boolean): ArrayStream<Input, Handler> {
+        if ("filter" in this.input) {
+            // @ts-expect-error: TypeScript gonna typescript
+            this.input = this.input.filter(fn);
+            return this;
+        }
         this.ops.push({
             type: "filter",
             op: fn as Op["op"],
@@ -149,6 +160,11 @@ export class ArrayStream<
      * ```
      */
     public forEach(fn: (input: Input) => void): ArrayStream<Input, Handler> {
+        if ("forEach" in this.input) {
+            // @ts-expect-error: TypeScript gonna typescript
+            this.input = this.input.forEach(fn);
+            return this;
+        }
         this.ops.push({
             type: "foreach",
             op: fn as Op["op"],
@@ -169,12 +185,7 @@ export class ArrayStream<
     public inspect(
         fn: (input: Input) => void = (item) => console.log(item)
     ): ArrayStream<Input, Handler> {
-        this.ops.push({
-            type: "foreach",
-            op: fn as Op["op"],
-        });
-
-        return this;
+        return this.forEach(fn);
     }
 
     /**
