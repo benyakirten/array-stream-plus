@@ -457,6 +457,11 @@ export class ArrayStream<
         fn: (input: Input) => End[]
     ): ArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
         const iter = this.read();
+        if ("flatMap" in iter) {
+            // @ts-expect-error: TypeScript gonna typescript
+            return new ArrayStream(iter.flatMap(fn), this.handler);
+        }
+
         function* flatMapGenerator() {
             for (const item of iter) {
                 const result = fn(item);
@@ -720,6 +725,13 @@ export class ArrayStream<
     public find(
         fn: (item: Input) => boolean
     ): HandlerReturnType<typeof this.handler, Input, Input | null> {
+        const iter = this.read();
+        if ("find" in iter) {
+            const found = iter.find(fn) ?? null;
+            // @ts-expect-error: TypeScript gonna typescript
+            return this.handler.compile(found);
+        }
+
         for (const item of this.read()) {
             if (fn(item)) {
                 // @ts-expect-error: TypeScript gonna typescript
