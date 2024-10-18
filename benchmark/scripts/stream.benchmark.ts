@@ -46,6 +46,7 @@ function testItertoolsPerformance(
 
 export function* testPerformance(numReps: number) {
     const POWERS_OF_TEN = 7;
+    const MAX_RECURSION_DEPTH_POWER_OF_TEN = 3;
 
     const streamPerformance: number[][] = Array.from(
         { length: POWERS_OF_TEN },
@@ -60,9 +61,16 @@ export function* testPerformance(numReps: number) {
         () => Array.from({ length: POWERS_OF_TEN }, () => 0)
     );
 
+    // If the browser supports iterator helpers, we use them for .map and .filter
+    // However, they count as recursion so we limit the depth to 1000 (10^3)
+    const hasIterHelpers = "map" in Iterator.prototype;
     for (let i = 0; i < numReps; i++) {
         for (let j = 0; j < POWERS_OF_TEN; j++) {
-            for (let k = 0; k < POWERS_OF_TEN; k++) {
+            for (
+                let k = 0;
+                k < (hasIterHelpers ? 3 : MAX_RECURSION_DEPTH_POWER_OF_TEN);
+                k++
+            ) {
                 const len = 10 ** j;
                 const ops = 10 ** k;
                 const streamPerformanceValue = testArrayStreamPerformance(

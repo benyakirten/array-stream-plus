@@ -107,6 +107,12 @@ export class ArrayStream<
     public map<End>(
         fn: (input: Input) => End
     ): ArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
+        if ("map" in this.input) {
+            // @ts-expect-error: TypeScript gonna typescript
+            this.input = this.input.map(fn);
+            // @ts-expect-error: TypeScript gonna typescript
+            return this;
+        }
         this.ops.push({
             type: "map",
             op: fn as Op["op"],
@@ -128,6 +134,11 @@ export class ArrayStream<
      * ```
      */
     public filter(fn: (input: Input) => boolean): ArrayStream<Input, Handler> {
+        if ("filter" in this.input) {
+            // @ts-expect-error: TypeScript gonna typescript
+            this.input = this.input.filter(fn);
+            return this;
+        }
         this.ops.push({
             type: "filter",
             op: fn as Op["op"],
@@ -149,6 +160,11 @@ export class ArrayStream<
      * ```
      */
     public forEach(fn: (input: Input) => void): ArrayStream<Input, Handler> {
+        if ("forEach" in this.input) {
+            // @ts-expect-error: TypeScript gonna typescript
+            this.input = this.input.forEach(fn);
+            return this;
+        }
         this.ops.push({
             type: "foreach",
             op: fn as Op["op"],
@@ -169,12 +185,7 @@ export class ArrayStream<
     public inspect(
         fn: (input: Input) => void = (item) => console.log(item)
     ): ArrayStream<Input, Handler> {
-        this.ops.push({
-            type: "foreach",
-            op: fn as Op["op"],
-        });
-
-        return this;
+        return this.forEach(fn);
     }
 
     /**
@@ -238,6 +249,7 @@ export class ArrayStream<
      */
     public take(n: number): ArrayStream<Input, Handler> {
         const iter = this.read();
+
         function* takeGenerator() {
             for (let i = 0; i < n; i++) {
                 const item = iter.next();
@@ -252,6 +264,12 @@ export class ArrayStream<
     }
 
     /**
+     * Alias for the `skip`, which has the same functionality as the `drop` iterator helper, c.f.
+     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Iterator/drop
+     */
+    public drop = this.skip;
+
+    /**
      * Returns a new iterator that will skip the first n items from the iterator, i.e.
      * ```ts
      * const stream = new ArrayStream([1, 2, 3, 4, 5])
@@ -262,6 +280,10 @@ export class ArrayStream<
      */
     public skip(n: number): ArrayStream<Input, Handler> {
         const iter = this.read();
+        if ("drop" in iter) {
+            return new ArrayStream(iter.drop(n), this.handler);
+        }
+
         function* skipGenerator() {
             let count = 0;
             while (count < n) {
@@ -446,6 +468,11 @@ export class ArrayStream<
         fn: (input: Input) => End[]
     ): ArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
         const iter = this.read();
+        if ("flatMap" in iter) {
+            // @ts-expect-error: TypeScript gonna typescript
+            return new ArrayStream(iter.flatMap(fn), this.handler);
+        }
+
         function* flatMapGenerator() {
             for (const item of iter) {
                 const result = fn(item);
@@ -542,6 +569,12 @@ export class ArrayStream<
         op: (acc: End, next: Input) => End,
         initialValue: End
     ): HandlerReturnType<typeof this.handler, Input, End> {
+        if ("reduce" in this.read()) {
+            const reduced = this.read().reduce(op, initialValue);
+            // @ts-expect-error: TypeScript gonna typescript
+            return this.handler.compile(reduced);
+        }
+
         let result = initialValue;
         let count = 0;
         for (const item of this.read()) {
@@ -603,6 +636,12 @@ export class ArrayStream<
     }
 
     /**
+     * Alias for `any`, which will check if any items match a predicate, c.f.
+     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Iterator/some
+     */
+    public some = this.any;
+
+    /**
      * Iterate through the iterator and return find the first item where the function returns true.
      * It is short circuiting, i.e.
      * ```ts
@@ -620,6 +659,12 @@ export class ArrayStream<
     public any(
         fn: (item: Input) => boolean
     ): HandlerReturnType<typeof this.handler, Input, boolean> {
+        const iter = this.read();
+        if ("some" in iter) {
+            // @ts-expect-error: TypeScript gonna typescript
+            return this.handler.compile(iter.some(fn));
+        }
+
         for (const item of this.read()) {
             if (fn(item)) {
                 // @ts-expect-error: TypeScript gonna typescript
@@ -630,6 +675,12 @@ export class ArrayStream<
         // @ts-expect-error: TypeScript gonna typescript
         return this.handler.compile(false);
     }
+
+    /**
+     * Alias for `all`, which will check if all items match a predicate, c.f.
+     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Iterator/every
+     */
+    public every = this.all;
 
     /**
      * Consume the iterator and return a boolean if all the items cause the function to return true.
@@ -649,6 +700,11 @@ export class ArrayStream<
     public all(
         fn: (item: Input) => boolean
     ): HandlerReturnType<typeof this.handler, Input, boolean> {
+        if ("every" in this.read()) {
+            // @ts-expect-error: TypeScript gonna typescript
+            return this.handler.compile(this.read().every(fn));
+        }
+
         for (const item of this.read()) {
             if (!fn(item)) {
                 // @ts-expect-error: TypeScript gonna typescript
@@ -680,6 +736,13 @@ export class ArrayStream<
     public find(
         fn: (item: Input) => boolean
     ): HandlerReturnType<typeof this.handler, Input, Input | null> {
+        const iter = this.read();
+        if ("find" in iter) {
+            const found = iter.find(fn) ?? null;
+            // @ts-expect-error: TypeScript gonna typescript
+            return this.handler.compile(found);
+        }
+
         for (const item of this.read()) {
             if (fn(item)) {
                 // @ts-expect-error: TypeScript gonna typescript
@@ -853,6 +916,12 @@ export class ArrayStream<
     }
 
     /**
+     * Alias for `collect`, which will consume the iterator and return the items in an array, c.f.
+     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Iterator/toArray
+     */
+    public toArray = this.collect;
+
+    /**
      * Consume the iterator and return the items in an array. It is identical in functionality
      * to a reduce method with an array that pushes the items, i.e.
      * ```ts
@@ -866,6 +935,11 @@ export class ArrayStream<
      * // stream2 = [1, 2, 3, 4, 5]
      */
     public collect(): HandlerReturnType<typeof this.handler, Input, Input[]> {
+        if ("toArray" in this.read()) {
+            // @ts-expect-error: TypeScript gonna typescript
+            return this.handler.compile(this.read().toArray());
+        }
+
         const items = [...this.read()];
         // @ts-expect-error: TypeScript gonna typescript
         return this.handler.compile(items);
@@ -906,7 +980,7 @@ export class ArrayStream<
         item: Input,
         index: number
     ): ItemResult<Input> {
-        let result;
+        let result: Input;
         for (const op of this.ops) {
             try {
                 switch (op.type) {
@@ -922,7 +996,7 @@ export class ArrayStream<
                         op.op(item);
                         break;
                     case "filterMap":
-                        result = op.op(item);
+                        result = op.op(item) as Input;
                         if (
                             result === null ||
                             result === false ||
@@ -930,7 +1004,7 @@ export class ArrayStream<
                         ) {
                             return { outcome: "filtered" };
                         }
-                        item = result as Input;
+                        item = result;
                         break;
                     default:
                         break;
