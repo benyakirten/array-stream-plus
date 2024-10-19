@@ -1251,7 +1251,9 @@ describe("ArrayStream", () => {
     });
 
     test("read should rethrow the errors with more context if errors arise during operations and the handler is Breaker", () => {
-        const stream = new ArrayStream([1, 2, 3], new Breaker()).map((x) => {
+        const stream = new ArrayStream([1, 2, 3], new Breaker(), {
+            useIteratorHelpersIfAvailable: false,
+        }).map((x) => {
             if (x === 2) {
                 throw new Error("Error");
             }
@@ -1297,7 +1299,9 @@ describe("ArrayStream", () => {
         }
 
         const settler = new Settler();
-        const stream = new ArrayStream(gen(), settler).map((x) => {
+        const stream = new ArrayStream(gen(), settler, {
+            useIteratorHelpersIfAvailable: false,
+        }).map((x) => {
             if (x === 2) {
                 throw new Error("Op Error");
             }

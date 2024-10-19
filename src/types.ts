@@ -142,6 +142,12 @@ export type SynchronousStreamOptions = {
      * thousands, but if you either have a low recursion depth ceiling or need to perform a large
      * amount of operations, you may want to disable this option.
      *
+     * Another reason to not use iterator helpers is they limit the ability to determine errors.
+     * With the default implementation, error handlers will be able to determine errors within
+     * the operation and examine the item before transformation by a map/filter/etc. operation.
+     * However, because iterator helpers do not have access to the base item before the operation,
+     * the error handler will be limited.
+     *
      * The full proposal is available [here](https://github.com/tc39/proposal-iterator-helpers),
      * which, as of writing this, has been been approved but has not yet been incorporated
      * in the ecmascript standard.
