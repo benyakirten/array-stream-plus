@@ -130,6 +130,7 @@ export class ArrayStream<
             // @ts-expect-error: TypeScript gonna typescript
             return this;
         }
+
         this.ops.push({
             type: "map",
             op: fn as Op["op"],
@@ -181,15 +182,15 @@ export class ArrayStream<
      *
      * NOTE: This method differs from the `Iterator.prototype.forEach` method in two ways:
      * 1. ArrayStream.prototype.forEach lazily evaluates the iterator and will run
-     *   on infinite generators.
-     * 2. ArrayStream.prototype.forEach will yield the iterated item and not `undefined`
-     *   for future operations
+     *   on infinite generators. It does not exhaust the generator.
+     * 2. ArrayStream.prototype.forEach will yield the iterated item and does not return
+     *  `undefined`
      */
     public forEach(fn: (input: Input) => void): ArrayStream<Input, Handler> {
         if ("map" in this.input && this.options.useIteratorHelpersIfAvailable) {
             // @ts-expect-error: TypeScript gonna typescript
             this.input = this.input.map((item) => {
-                // forEach will not return the item and will return undefined from the iterator
+                // forEach will not return the item and will return undefined and not an iterator
                 // which is different from our implementation and goals.
                 fn(item);
                 return item;
