@@ -1454,4 +1454,56 @@ describe("ArrayStream", () => {
             ],
         });
     });
+
+    test("every should return the same values as all", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
+
+        const streamEvery = new ArrayStream(gen()).every((x) => x > 0);
+        const streamAll = new ArrayStream(gen()).all((x) => x > 0);
+
+        expect(streamEvery).toEqual(streamAll);
+    });
+
+    test("some should return the same values as any", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
+
+        const streamSome = new ArrayStream(gen()).some((x) => x > 4);
+        const streamAny = new ArrayStream(gen()).any((x) => x > 4);
+
+        expect(streamSome).toEqual(streamAny);
+    });
+
+    test("drop should return the same values as skip", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
+
+        const streamDrop = new ArrayStream(gen()).drop(2);
+        const streamSkip = new ArrayStream(gen()).skip(2);
+
+        expect(streamSkip).toEqual(streamDrop);
+    });
+
+    test("toArray should return the same values as collect", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
+
+        const streamToArray = new ArrayStream(gen()).toArray();
+        const streamCollect = new ArrayStream(gen()).collect();
+
+        expect(streamToArray).toEqual(streamCollect);
+    });
 });

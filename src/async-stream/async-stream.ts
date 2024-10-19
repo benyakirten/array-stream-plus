@@ -628,6 +628,8 @@ export class AsyncArrayStream<
         return this.handler.compile(flattened);
     }
 
+    public some = this.any;
+
     /**
      * Consume the iterator and return a boolean if any item causes the function to return true.
      * It is short circuiting and will return after any item returns true, i.e.

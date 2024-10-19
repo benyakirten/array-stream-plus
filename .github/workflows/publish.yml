@@ -16,14 +16,7 @@ jobs:
         run: bun install
       - name: build
         run: bun run build
-        # Bun publish does not currently get the
-        # license/homepage/repository from the package.json
-      - name: Setup node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
       - name: publish
-        run: npm publish
+        run: bun publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

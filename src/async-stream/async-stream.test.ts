@@ -339,6 +339,23 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should return the same values as collect", async () => {
+                async function* gen() {
+                    yield 1;
+                    yield 2;
+                    yield 3;
+                }
+
+                const streamToArray = await new AsyncArrayStream(
+                    gen()
+                ).toArray();
+                const streamCollect = await new AsyncArrayStream(
+                    gen()
+                ).collect();
+
+                expect(streamToArray).toEqual(streamCollect);
+            });
         });
 
         describe("skip", () => {
@@ -437,6 +454,19 @@ describe("AsyncArrayStream", () => {
                     data: [0, 2],
                     errors: [],
                 });
+            });
+
+            it("should return the same values as skip", async () => {
+                async function* gen() {
+                    yield 1;
+                    yield 2;
+                    yield 3;
+                }
+
+                const streamDrop = await new AsyncArrayStream(gen()).drop(2);
+                const streamSkip = await new AsyncArrayStream(gen()).skip(2);
+
+                expect(streamSkip).toEqual(streamDrop);
             });
         });
 
@@ -1079,6 +1109,23 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should return the same values as any", async () => {
+                async function* gen() {
+                    yield 1;
+                    yield 2;
+                    yield 3;
+                }
+
+                const streamSome = await new AsyncArrayStream(gen()).some(
+                    (x) => x > 4
+                );
+                const streamAny = await new AsyncArrayStream(gen()).any(
+                    (x) => x > 4
+                );
+
+                expect(streamSome).toEqual(streamAny);
+            });
         });
 
         describe("all", () => {
@@ -1128,6 +1175,23 @@ describe("AsyncArrayStream", () => {
                     data: false,
                     errors: [],
                 });
+            });
+
+            it("return the same values as all", async () => {
+                async function* gen() {
+                    yield 1;
+                    yield 2;
+                    yield 3;
+                }
+
+                const streamEvery = await new AsyncArrayStream(gen()).every(
+                    (x) => x > 0
+                );
+                const streamAll = await new AsyncArrayStream(gen()).all(
+                    (x) => x > 0
+                );
+
+                expect(streamEvery).toEqual(streamAll);
             });
         });
 

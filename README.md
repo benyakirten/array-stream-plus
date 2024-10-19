@@ -79,7 +79,8 @@ I would be overjoyed if anyone wanted to contribute! Please check out the [Contr
 ### 1.1.0
 
 -   Add alternate names for the skip/all/any methods as drop/every/some to be consistent with iterator helpers
--   Add support for iterator helpers for functions that return new iterators
+-   Add options to the synchronous `ArrayStream`, which allows iterator helpers to be used (enabled by default)
+-   If the `useIteratorHelpersIfAvailable` option is enabled then, if iterator helpers are available, they will be used.
 
 ### 1.0.1
 
