@@ -78,8 +78,10 @@ export class AsyncArrayStream<
                 }
             }
             return gen();
+        } else if (Symbol.asyncIterator in input) {
+            return input[Symbol.asyncIterator]();
         } else if (Array.isArray(input)) {
-            const inputClone = structuredClone(input);
+            const inputClone = [...input];
             async function* gen() {
                 for (const item of inputClone) {
                     yield item;

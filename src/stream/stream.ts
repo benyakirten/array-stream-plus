@@ -7,7 +7,16 @@ import type {
     NarrowHandlerType,
     ErrorHandler,
     RequiredHandler,
+    SynchronousStreamOptions,
 } from "../types";
+
+/**
+ * Provide the default options for the stream options, which are as follows:
+ * 1. `useIteratorHelpersIfAvailable`: `true`
+ */
+const DEFAULT_STREAM_OPTIONS: SynchronousStreamOptions = {
+    useIteratorHelpersIfAvailable: true,
+};
 
 /**
  * A class for performing a series of operations on a synchronous and iterable source of data.
@@ -56,19 +65,27 @@ export class ArrayStream<
      */
     constructor(
         input: Streamable<Input>,
-        private readonly handler: Handler = new Breaker<Input>() as Handler
+        private readonly handler: Handler = new Breaker<Input>() as Handler,
+        private options: SynchronousStreamOptions = DEFAULT_STREAM_OPTIONS
     ) {
-        this.input = ArrayStream.makeIterator(input);
+        this.input = this.makeIterator(input);
     }
 
     /**
-     * Helper function to standardize the input to an iterator.
+     * Helper function to make the
      */
-    private static makeIterator<Stream>(
+    private makeIterator<Stream>(
         input: Streamable<Stream>
     ): IterableIterator<Stream> {
-        if (Array.isArray(input)) {
-            return input[Symbol.iterator]();
+        if (Symbol.iterator in input) {
+            if (
+                "from" in Iterator &&
+                this.options.useIteratorHelpersIfAvailable
+            ) {
+                return Iterator.from(input);
+            } else {
+                return input[Symbol.iterator]();
+            }
         }
 
         return input;
@@ -107,7 +124,7 @@ export class ArrayStream<
     public map<End>(
         fn: (input: Input) => End
     ): ArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
-        if ("map" in this.input) {
+        if ("map" in this.input && this.options.useIteratorHelpersIfAvailable) {
             // @ts-expect-error: TypeScript gonna typescript
             this.input = this.input.map(fn);
             // @ts-expect-error: TypeScript gonna typescript
@@ -134,7 +151,10 @@ export class ArrayStream<
      * ```
      */
     public filter(fn: (input: Input) => boolean): ArrayStream<Input, Handler> {
-        if ("filter" in this.input) {
+        if (
+            "filter" in this.input &&
+            this.options.useIteratorHelpersIfAvailable
+        ) {
             // @ts-expect-error: TypeScript gonna typescript
             this.input = this.input.filter(fn);
             return this;
@@ -160,7 +180,10 @@ export class ArrayStream<
      * ```
      */
     public forEach(fn: (input: Input) => void): ArrayStream<Input, Handler> {
-        if ("forEach" in this.input) {
+        if (
+            "forEach" in this.input &&
+            this.options.useIteratorHelpersIfAvailable
+        ) {
             // @ts-expect-error: TypeScript gonna typescript
             this.input = this.input.forEach(fn);
             return this;
@@ -248,6 +271,14 @@ export class ArrayStream<
      * ```
      */
     public take(n: number): ArrayStream<Input, Handler> {
+        if (
+            "take" in this.input &&
+            this.options.useIteratorHelpersIfAvailable
+        ) {
+            // @ts-expect-error: TypeScript gonna typescript
+            this.input = this.input.take(n);
+            return this;
+        }
         const iter = this.read();
 
         function* takeGenerator() {
@@ -279,11 +310,16 @@ export class ArrayStream<
      * ```
      */
     public skip(n: number): ArrayStream<Input, Handler> {
-        const iter = this.read();
-        if ("drop" in iter) {
-            return new ArrayStream(iter.drop(n), this.handler);
+        if (
+            "drop" in this.input &&
+            this.options.useIteratorHelpersIfAvailable
+        ) {
+            // @ts-expect-error: TypeScript gonna typescript
+            this.input = this.input.drop(n);
+            return this;
         }
 
+        const iter = this.read();
         function* skipGenerator() {
             let count = 0;
             while (count < n) {
@@ -415,7 +451,7 @@ export class ArrayStream<
         NarrowHandlerType<Handler, Input, [Input, Stream]>
     > {
         const iter = this.read();
-        const streamIter = ArrayStream.makeIterator(stream);
+        const streamIter = this.makeIterator(stream);
         function* zipGenerator() {
             for (const item of iter) {
                 const streamItem = streamIter.next();
@@ -467,11 +503,15 @@ export class ArrayStream<
     public flatMap<End>(
         fn: (input: Input) => End[]
     ): ArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
-        const iter = this.read();
-        if ("flatMap" in iter) {
+        if ("flatMap" in this.input) {
             // @ts-expect-error: TypeScript gonna typescript
-            return new ArrayStream(iter.flatMap(fn), this.handler);
+            this.input = this.input.flatMap(fn);
+
+            // @ts-expect-error: TypeScript gonna typescript
+            return this;
         }
+
+        const iter = this.read();
 
         function* flatMapGenerator() {
             for (const item of iter) {
@@ -569,7 +609,10 @@ export class ArrayStream<
         op: (acc: End, next: Input) => End,
         initialValue: End
     ): HandlerReturnType<typeof this.handler, Input, End> {
-        if ("reduce" in this.read()) {
+        if (
+            "reduce" in this.read() &&
+            this.options.useIteratorHelpersIfAvailable
+        ) {
             const reduced = this.read().reduce(op, initialValue);
             // @ts-expect-error: TypeScript gonna typescript
             return this.handler.compile(reduced);
@@ -660,7 +703,7 @@ export class ArrayStream<
         fn: (item: Input) => boolean
     ): HandlerReturnType<typeof this.handler, Input, boolean> {
         const iter = this.read();
-        if ("some" in iter) {
+        if ("some" in iter && this.options.useIteratorHelpersIfAvailable) {
             // @ts-expect-error: TypeScript gonna typescript
             return this.handler.compile(iter.some(fn));
         }
@@ -700,12 +743,14 @@ export class ArrayStream<
     public all(
         fn: (item: Input) => boolean
     ): HandlerReturnType<typeof this.handler, Input, boolean> {
-        if ("every" in this.read()) {
+        const iter = this.read();
+
+        if ("every" in iter && this.options.useIteratorHelpersIfAvailable) {
             // @ts-expect-error: TypeScript gonna typescript
-            return this.handler.compile(this.read().every(fn));
+            return this.handler.compile(iter.every(fn));
         }
 
-        for (const item of this.read()) {
+        for (const item of iter) {
             if (!fn(item)) {
                 // @ts-expect-error: TypeScript gonna typescript
                 return this.handler.compile(false);
@@ -935,12 +980,13 @@ export class ArrayStream<
      * // stream2 = [1, 2, 3, 4, 5]
      */
     public collect(): HandlerReturnType<typeof this.handler, Input, Input[]> {
-        if ("toArray" in this.read()) {
+        const iter = this.read();
+        if ("toArray" in iter && this.options.useIteratorHelpersIfAvailable) {
             // @ts-expect-error: TypeScript gonna typescript
-            return this.handler.compile(this.read().toArray());
+            return this.handler.compile(iter.toArray());
         }
 
-        const items = [...this.read()];
+        const items = [...iter];
         // @ts-expect-error: TypeScript gonna typescript
         return this.handler.compile(items);
     }
