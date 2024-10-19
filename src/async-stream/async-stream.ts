@@ -78,8 +78,10 @@ export class AsyncArrayStream<
                 }
             }
             return gen();
+        } else if (Symbol.asyncIterator in input) {
+            return input[Symbol.asyncIterator]();
         } else if (Array.isArray(input)) {
-            const inputClone = structuredClone(input);
+            const inputClone = [...input];
             async function* gen() {
                 for (const item of inputClone) {
                     yield item;
@@ -271,6 +273,12 @@ export class AsyncArrayStream<
         // @ts-expect-error: The handler is narrowed to the new type
         return new AsyncArrayStream(newGenerator(), this.handler);
     }
+
+    /**
+     * Alias for `skip`, which will discard the first n items from the iterator, c.f.
+     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Iterator/drop
+     */
+    public drop = this.skip;
 
     /**
      * Return a new iterator that will discard the first n items from the iterator, i.e.
@@ -518,7 +526,7 @@ export class AsyncArrayStream<
     public async count(): Promise<
         HandlerReturnType<typeof this.handler, Input, number>
     > {
-        const arr = await this.toArray();
+        const arr = await this.toUncompiledArray();
         // @ts-expect-error: The handler is narrowed to the new type
         return this.handler.compile(arr.length);
     }
@@ -586,7 +594,7 @@ export class AsyncArrayStream<
         op: (acc: End, next: Input) => End | Promise<End>,
         initialValue: End
     ): Promise<HandlerReturnType<typeof this.handler, Input, End>> {
-        const intermediate = await this.toArray();
+        const intermediate = await this.toUncompiledArray();
 
         let result = initialValue;
         for (let i = intermediate.length - 1; i >= 0; i--) {
@@ -614,11 +622,13 @@ export class AsyncArrayStream<
     ): Promise<
         HandlerReturnType<typeof this.handler, Input, FlatArray<Input, D>[]>
     > {
-        const result = await this.toArray();
+        const result = await this.toUncompiledArray();
         const flattened = result.flat(d);
         // @ts-expect-error: The handler is narrowed to the new type
         return this.handler.compile(flattened);
     }
+
+    public some = this.any;
 
     /**
      * Consume the iterator and return a boolean if any item causes the function to return true.
@@ -648,6 +658,12 @@ export class AsyncArrayStream<
         // @ts-expect-error: The handler is narrowed to the new type
         return this.handler.compile(false);
     }
+
+    /**
+     * Alias for all, which will consume the iterator and return whether the predicate matches all items, c.f.
+     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Iterator/every
+     */
+    public every = this.all;
 
     /**
      * Consume the iterator and return a boolean if all the items cause the function to return true.
@@ -765,7 +781,7 @@ export class AsyncArrayStream<
     public async findLast(
         fn: MaybeAsyncFn<Input, boolean>
     ): Promise<HandlerReturnType<typeof this.handler, Input, Input | null>> {
-        const items = await this.toArray();
+        const items = await this.toUncompiledArray();
         for (let i = items.length - 1; i >= 0; i--) {
             if (await fn(items[i])) {
                 // @ts-expect-error: The handler is narrowed to the new type
@@ -798,7 +814,7 @@ export class AsyncArrayStream<
     public async findLastIndex(
         fn: MaybeAsyncFn<Input, boolean>
     ): Promise<HandlerReturnType<typeof this.handler, Input, number>> {
-        const items = await this.toArray();
+        const items = await this.toUncompiledArray();
         for (let i = items.length - 1; i >= 0; i--) {
             if (await fn(items[i])) {
                 // @ts-expect-error: The handler is narrowed to the new type
@@ -872,6 +888,12 @@ export class AsyncArrayStream<
     }
 
     /**
+     * Alias for collect, which will consume the iterator and return the items as an array, c.f.
+     * https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Iterator/toArray
+     */
+    public toArray = this.collect;
+
+    /**
      * Consume the iterator and return the items in an array. It is
      * identical in functionality to a reduce method with an array that pushes the items, i.e.
      * ```ts
@@ -888,12 +910,12 @@ export class AsyncArrayStream<
     public async collect(): Promise<
         HandlerReturnType<typeof this.handler, Input, Input[]>
     > {
-        const result = await this.toArray();
+        const result = await this.toUncompiledArray();
         // @ts-expect-error: The handler is narrowed to the new type
         return this.handler.compile(result);
     }
 
-    private async toArray(): Promise<Input[]> {
+    private async toUncompiledArray(): Promise<Input[]> {
         const result: Input[] = [];
         for await (const item of this.read()) {
             result.push(item);

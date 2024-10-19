@@ -4,29 +4,60 @@ import { ArrayStream } from "./stream";
 import { Breaker, Ignorer, Settler } from "../errors/handlers";
 
 describe("ArrayStream", () => {
+    // Test functions using both the iterator helpers and the default iteration methods
+    function makeArrayArrayStreams<T>(
+        items: T[]
+    ): ArrayStream<T, Breaker<T>>[] {
+        return [
+            new ArrayStream(items, new Breaker(), {
+                useIteratorHelpersIfAvailable: true,
+            }),
+            new ArrayStream(items, new Breaker(), {
+                useIteratorHelpersIfAvailable: false,
+            }),
+        ];
+    }
+
+    function makeGeneratorArrayStreams<T>(
+        gen: () => IterableIterator<T>
+    ): ArrayStream<T, Breaker<T>>[] {
+        return [
+            new ArrayStream(gen(), new Breaker(), {
+                useIteratorHelpersIfAvailable: true,
+            }),
+            new ArrayStream(gen(), new Breaker(), {
+                useIteratorHelpersIfAvailable: false,
+            }),
+        ];
+    }
+
     // Operations
     test("foreach should call the function for each item in the stream", () => {
-        let i = 0;
-        const got = new ArrayStream([1, 2, 3])
-            .forEach(() => {
-                i++;
-            })
-            .collect();
+        for (const stream of makeArrayArrayStreams([1, 2, 3])) {
+            let i = 0;
+            const got = stream
+                .forEach(() => {
+                    i++;
+                })
+                .collect();
 
-        expect(i).toEqual(3);
-        expect(got).toEqual([1, 2, 3]);
+            expect(i).toEqual(3);
+            expect(got).toEqual([1, 2, 3]);
+        }
     });
 
     test("inspect should call the function for each item in the stream", () => {
-        let i = 0;
-        const got = new ArrayStream([1, 2, 3])
-            .inspect(() => {
-                i++;
-            })
-            .collect();
+        for (const stream of makeArrayArrayStreams([1, 2, 3])) {
+            let i = 0;
+            const got = stream
+                .inspect(() => {
+                    i++;
+                })
+                .collect();
 
-        expect(i).toEqual(3);
-        expect(got).toEqual([1, 2, 3]);
+            expect(i).toEqual(3);
+            expect(got).toEqual([1, 2, 3]);
+        }
     });
 
     test("map should correctly change the type of the array stream", () => {
@@ -50,11 +81,13 @@ describe("ArrayStream", () => {
     });
 
     test("filterMap should filter out items that return null, false, or undefined and transform the others", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6])
-            .filterMap((x) => (x % 2 === 0 ? x * 2 : null))
-            .collect();
+        for (const stream of makeArrayArrayStreams([1, 2, 3, 4, 5, 6])) {
+            const got = stream
+                .filterMap((x) => (x % 2 === 0 ? x * 2 : null))
+                .collect();
 
-        expect(got).toEqual([4, 8, 12]);
+            expect(got).toEqual([4, 8, 12]);
+        }
     });
 
     test("filterMap should correctly change the type of the array stream", () => {
@@ -87,18 +120,20 @@ describe("ArrayStream", () => {
     });
 
     test("stepBy should respect other operations", () => {
-        const got = new ArrayStream([
+        for (const stream of makeArrayArrayStreams([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
-        ])
-            // 2, 4, 6, 8, 10, 12, 14, 16
-            .filter((x) => x % 2 === 0)
-            // 2, 6, 10, 14
-            .stepBy(2)
-            // 2, 6
-            .take(2)
-            .collect();
+        ])) {
+            const got = stream
+                // 2, 4, 6, 8, 10, 12, 14, 16
+                .filter((x) => x % 2 === 0)
+                // 2, 6, 10, 14
+                .stepBy(2)
+                // 2, 6
+                .take(2)
+                .collect();
 
-        expect(got).toEqual([2, 6]);
+            expect(got).toEqual([2, 6]);
+        }
     });
 
     test("stepBy should return the correct type based on the error handler", () => {
@@ -113,30 +148,33 @@ describe("ArrayStream", () => {
     });
 
     test("skip should skip the next n items of the array", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            .skip(3)
-            .collect();
-
-        expect(got).toEqual([4, 5, 6, 7, 8, 9, 10]);
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        ])) {
+            const got = stream.skip(3).collect();
+            expect(got).toEqual([4, 5, 6, 7, 8, 9, 10]);
+        }
     });
 
     test("skip should be able to work with other operations", () => {
-        const got = new ArrayStream([
+        for (const stream of makeArrayArrayStreams([
             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
             20, 21, 22,
-        ])
-            // 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22
-            .filter((x) => x % 2 === 0)
-            // 2, 6, 10, 14, 18, 22
-            .stepBy(2)
-            // 14, 18, 22
-            .skip(3)
-            // 18, 22
-            .take(2)
-            .map((x) => ({ x }))
-            .collect();
+        ])) {
+            const got = stream
+                // 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22
+                .filter((x) => x % 2 === 0)
+                // 2, 6, 10, 14, 18, 22
+                .stepBy(2)
+                // 14, 18, 22
+                .skip(3)
+                // 18, 22
+                .take(2)
+                .map((x) => ({ x }))
+                .collect();
 
-        expect(got).toEqual([{ x: 14 }, { x: 18 }]);
+            expect(got).toEqual([{ x: 14 }, { x: 18 }]);
+        }
     });
 
     test("skip should return the correct type based on the error handler", () => {
@@ -151,28 +189,38 @@ describe("ArrayStream", () => {
     });
 
     test("take should return only as many items as designated", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            .take(3)
-            .collect();
-        expect(got).toEqual([1, 2, 3]);
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        ])) {
+            const got = stream.take(3).collect();
+            expect(got).toEqual([1, 2, 3]);
+        }
     });
 
     test("take should return all items if the limit is higher than the number of items", () => {
-        const got = new ArrayStream([1, 2]).take(3).collect();
-        expect(got).toEqual([1, 2]);
+        for (const stream of makeArrayArrayStreams([1, 2])) {
+            const got = stream.take(3).collect();
+            expect(got).toEqual([1, 2]);
+        }
     });
 
     test("take should take 0 items if the limit is 0", () => {
-        const got = new ArrayStream([1, 2, 3]).take(0).collect();
-        expect(got).toEqual([]);
+        for (const stream of makeArrayArrayStreams([1, 2, 3])) {
+            const got = stream.take(0).collect();
+            expect(got).toEqual([]);
+        }
     });
 
     test("take should respect filters that have been previously applied in counting the items to take", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            .filter((x) => x % 2 === 0)
-            .take(3)
-            .collect();
-        expect(got).toEqual([2, 4, 6]);
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        ])) {
+            const got = stream
+                .filter((x) => x % 2 === 0)
+                .take(3)
+                .collect();
+            expect(got).toEqual([2, 4, 6]);
+        }
     });
 
     test("take should take a fixed number of items from a generator that will generate infinite items", () => {
@@ -183,19 +231,24 @@ describe("ArrayStream", () => {
             }
         }
 
-        const got = new ArrayStream(generate()).take(5).collect();
-
-        expect(got).toEqual([0, 1, 2, 3, 4]);
+        for (const stream of makeGeneratorArrayStreams(generate)) {
+            const got = stream.take(5).collect();
+            expect(got).toEqual([0, 1, 2, 3, 4]);
+        }
     });
 
     test("take should continue to perform operations as expected after the limit has been reached", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-            .filter((x) => x % 2 === 0)
-            .take(5)
-            .map((x) => ({ value: x * 2 }))
-            .take(3)
-            .collect();
-        expect(got).toEqual([{ value: 4 }, { value: 8 }, { value: 12 }]);
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        ])) {
+            const got = stream
+                .filter((x) => x % 2 === 0)
+                .take(5)
+                .map((x) => ({ value: x * 2 }))
+                .take(3)
+                .collect();
+            expect(got).toEqual([{ value: 4 }, { value: 8 }, { value: 12 }]);
+        }
     });
 
     test("take should return the correct type based on the error handler", () => {
@@ -211,17 +264,18 @@ describe("ArrayStream", () => {
 
     test("chain should append one stream to the end of the other", () => {
         const got = new ArrayStream([1, 2, 3]).chain([4, 5, 6]).collect();
-
         expect(got).toEqual([1, 2, 3, 4, 5, 6]);
     });
 
     test("chain should work with other operations", () => {
-        const got = new ArrayStream([1, 2, 3])
-            .filter((x) => x % 2 === 0)
-            .chain([4, 5, 6])
-            .collect();
+        for (const stream of makeArrayArrayStreams([1, 2, 3])) {
+            const got = stream
+                .filter((x) => x % 2 === 0)
+                .chain([4, 5, 6])
+                .collect();
 
-        expect(got).toEqual([2, 4, 5, 6]);
+            expect(got).toEqual([2, 4, 5, 6]);
+        }
     });
 
     test("chain should return the correct type based on the error handler", () => {
@@ -258,25 +312,29 @@ describe("ArrayStream", () => {
     });
 
     test("zip should work with other operations", () => {
-        const got = new ArrayStream([1, 2, 3])
-            .map((x) => ({ x }))
-            .zip([4, 5, 6])
-            .collect();
+        for (const stream of makeArrayArrayStreams([1, 2, 3])) {
+            const got = stream
+                .map((x) => ({ x }))
+                .zip([4, 5, 6])
+                .collect();
 
-        expect(got).toEqual([
-            [{ x: 1 }, 4],
-            [{ x: 2 }, 5],
-            [{ x: 3 }, 6],
-        ]);
+            expect(got).toEqual([
+                [{ x: 1 }, 4],
+                [{ x: 2 }, 5],
+                [{ x: 3 }, 6],
+            ]);
+        }
     });
 
     test("zip should stop when the initial stream ends", () => {
-        const got = new ArrayStream([1, 2, 3])
-            .filter((x) => x % 2 === 0)
-            .zip([4, 5, 6])
-            .collect();
+        for (const stream of makeArrayArrayStreams([1, 2, 3])) {
+            const got = stream
+                .filter((x) => x % 2 === 0)
+                .zip([4, 5, 6])
+                .collect();
 
-        expect(got).toEqual([[2, 4]]);
+            expect(got).toEqual([[2, 4]]);
+        }
     });
 
     test("zip should stop when the new stream ends", () => {
@@ -352,12 +410,14 @@ describe("ArrayStream", () => {
     });
 
     test("intersperse should work correctly with other operations", () => {
-        const got = new ArrayStream([1, 2, 3, 4])
-            .filter((x) => x % 2 === 0)
-            .intersperse(0)
-            .collect();
+        for (const stream of makeArrayArrayStreams([1, 2, 3, 4])) {
+            const got = stream
+                .filter((x) => x % 2 === 0)
+                .intersperse(0)
+                .collect();
 
-        expect(got).toEqual([2, 0, 4]);
+            expect(got).toEqual([2, 0, 4]);
+        }
     });
 
     test("intersperse should work with infinite generators", () => {
@@ -368,11 +428,10 @@ describe("ArrayStream", () => {
             }
         }
 
-        const got = new ArrayStream(generate())
-            .intersperse(100)
-            .take(5)
-            .collect();
-        expect(got).toEqual([0, 100, 1, 100, 2]);
+        for (const stream of makeGeneratorArrayStreams(generate)) {
+            const got = stream.intersperse(100).take(5).collect();
+            expect(got).toEqual([0, 100, 1, 100, 2]);
+        }
     });
 
     test("intersperse should return the correct type based on the error handler", () => {
@@ -404,15 +463,17 @@ describe("ArrayStream", () => {
     });
 
     test("enumerate should work with other operations", () => {
-        const got = new ArrayStream([100, 200, 300])
-            .filter((x) => x > 100)
-            .enumerate()
-            .collect();
+        for (const stream of makeArrayArrayStreams([100, 200, 300])) {
+            const got = stream
+                .filter((x) => x > 100)
+                .enumerate()
+                .collect();
 
-        expect(got).toEqual([
-            [0, 200],
-            [1, 300],
-        ]);
+            expect(got).toEqual([
+                [0, 200],
+                [1, 300],
+            ]);
+        }
     });
 
     test("enumerate should work with infinite streams before a take operation has been performed", () => {
@@ -423,12 +484,14 @@ describe("ArrayStream", () => {
             }
         }
 
-        const got = new ArrayStream(generate()).enumerate().take(3).collect();
-        expect(got).toEqual([
-            [0, 0],
-            [1, 1],
-            [2, 2],
-        ]);
+        for (const stream of makeGeneratorArrayStreams(generate)) {
+            const got = stream.enumerate().take(3).collect();
+            expect(got).toEqual([
+                [0, 0],
+                [1, 1],
+                [2, 2],
+            ]);
+        }
     });
 
     test("enumerate should return the correct type based on the error handler", () => {
@@ -453,24 +516,28 @@ describe("ArrayStream", () => {
     });
 
     test("flatMap should take every item and apply the function to it, then flatten the results", () => {
-        const got = new ArrayStream([1, 2, 3])
-            .flatMap((x) => [x, x * 2])
-            .collect();
+        for (const stream of makeArrayArrayStreams([1, 2, 3])) {
+            const got = stream.flatMap((x) => [x, x * 2]).collect();
 
-        expect(got).toEqual([1, 2, 2, 4, 3, 6]);
+            expect(got).toEqual([1, 2, 2, 4, 3, 6]);
+        }
     });
 
     test("flatMap should work with other operators", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9])
-            // 2, 4, 6, 8
-            .filter((x) => x % 2 === 0)
-            // 2, 102, 202, 4, 104, 204, 6, 106, 206, 8, 108, 208
-            .flatMap((x) => [x, x + 100, x + 200])
-            // 2, 102, 202, 4, 104
-            .take(5)
-            .collect();
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ])) {
+            const got = stream
+                // 2, 4, 6, 8
+                .filter((x) => x % 2 === 0)
+                // 2, 102, 202, 4, 104, 204, 6, 106, 206, 8, 108, 208
+                .flatMap((x) => [x, x + 100, x + 200])
+                // 2, 102, 202, 4, 104
+                .take(5)
+                .collect();
 
-        expect(got).toEqual([2, 102, 202, 4, 104]);
+            expect(got).toEqual([2, 102, 202, 4, 104]);
+        }
     });
 
     test("flatMap should work with infinite streams", () => {
@@ -481,12 +548,14 @@ describe("ArrayStream", () => {
             }
         }
 
-        const got = new ArrayStream(generate())
-            .flatMap((x) => [x, x * 2])
-            .take(5)
-            .collect();
+        for (const stream of makeGeneratorArrayStreams(generate)) {
+            const got = stream
+                .flatMap((x) => [x, x * 2])
+                .take(5)
+                .collect();
 
-        expect(got).toEqual([0, 0, 1, 2, 2]);
+            expect(got).toEqual([0, 0, 1, 2, 2]);
+        }
     });
 
     test("flatMap should return the correct type based on the error handler", () => {
@@ -510,13 +579,26 @@ describe("ArrayStream", () => {
     });
 
     test("fuse should work with other operations", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, null, 7, 8, 9])
-            .filter((x) => (x === null ? true : x % 2 === 0))
-            .fuse()
-            .take(2)
-            .collect();
+        for (const stream of makeArrayArrayStreams([
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            null,
+            7,
+            8,
+            9,
+        ])) {
+            const got = stream
+                .filter((x) => (x === null ? true : x % 2 === 0))
+                .fuse()
+                .take(2)
+                .collect();
 
-        expect(got).toEqual([2, 4]);
+            expect(got).toEqual([2, 4]);
+        }
     });
 
     test("fuse should work with infinite generator", () => {
@@ -527,11 +609,13 @@ describe("ArrayStream", () => {
             }
         }
 
-        const got = new ArrayStream(generate())
-            .map((i) => (i == 3 ? null : i))
-            .fuse()
-            .collect();
-        expect(got).toEqual([0, 1, 2]);
+        for (const stream of makeGeneratorArrayStreams(generate)) {
+            const got = stream
+                .map((i) => (i == 3 ? null : i))
+                .fuse()
+                .collect();
+            expect(got).toEqual([0, 1, 2]);
+        }
     });
 
     test("fuse should return the correct type based on the error handler", () => {
@@ -563,16 +647,20 @@ describe("ArrayStream", () => {
 
     // Finalizer
     test("count should count the remaining items after all operations have been performed", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14])
-            // 2, 4, 6, 8, 10, 12, 14
-            .filter((x) => x % 2 === 0)
-            // 2, 4, 6, 8, 10, 12
-            .take(6)
-            // 6, 12
-            .filter((x) => x % 3 === 0)
-            .count();
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14,
+        ])) {
+            const got = stream
+                // 2, 4, 6, 8, 10, 12, 14
+                .filter((x) => x % 2 === 0)
+                // 2, 4, 6, 8, 10, 12
+                .take(6)
+                // 6, 12
+                .filter((x) => x % 3 === 0)
+                .count();
 
-        expect(got).toEqual(2);
+            expect(got).toEqual(2);
+        }
     });
 
     test("count should have the correct return type depending on the error handler", () => {
@@ -601,24 +689,32 @@ describe("ArrayStream", () => {
     });
 
     test("nth should return the nth item after all operations have been performed if it exists", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14])
-            .filter((x) => x % 2 === 0)
-            .take(6)
-            .map((x) => ({ value: x * 2 }))
-            .nth(2);
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14,
+        ])) {
+            const got = stream
+                .filter((x) => x % 2 === 0)
+                .take(6)
+                .map((x) => ({ value: x * 2 }))
+                .nth(2);
 
-        expect(got).not.toBeNull();
-        expect(got).toEqual({ value: 12 });
+            expect(got).not.toBeNull();
+            expect(got).toEqual({ value: 12 });
+        }
     });
 
     test("nth should return null if the nth item does not exist", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14])
-            .filter((x) => x % 2 === 0)
-            .take(6)
-            .map((x) => ({ value: x * 2 }))
-            .nth(100);
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14,
+        ])) {
+            const got = stream
+                .filter((x) => x % 2 === 0)
+                .take(6)
+                .map((x) => ({ value: x * 2 }))
+                .nth(100);
 
-        expect(got).toBeNull();
+            expect(got).toBeNull();
+        }
     });
 
     test("nth should have the correct return type depending on the error handler", () => {
@@ -741,14 +837,16 @@ describe("ArrayStream", () => {
     });
 
     test("any should only exhaust until the needed item if they are not greedy", () => {
-        const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ])) {
+            const gotIndex = stream.any((x) => x === 5);
+            const rest = stream.collect();
 
-        const gotIndex = stream.any((x) => x === 5);
-        const rest = stream.collect();
-
-        // Iterator has exhausted up to 5 so it will then iterate through 6, 7, 8 then 9
-        expect(gotIndex).toBe(true);
-        expect(rest).toEqual([6, 7, 8, 9]);
+            // Iterator has exhausted up to 5 so it will then iterate through 6, 7, 8 then 9
+            expect(gotIndex).toBe(true);
+            expect(rest).toEqual([6, 7, 8, 9]);
+        }
     });
 
     test("any should have the correct return type depending on the error handler", () => {
@@ -777,25 +875,33 @@ describe("ArrayStream", () => {
     });
 
     test("all should return true if the predicate is true for all items", () => {
-        let i = 0;
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).all((x) => {
-            i++;
-            return x > 0;
-        });
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ])) {
+            let i = 0;
+            const got = stream.all((x) => {
+                i++;
+                return x > 0;
+            });
 
-        expect(got).toBe(true);
-        expect(i).toBe(9);
+            expect(got).toBe(true);
+            expect(i).toBe(9);
+        }
     });
 
     test("all should return false and exit early if the predicate is false for any item", () => {
-        let i = 0;
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).all((x) => {
-            i++;
-            return x !== 5;
-        });
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ])) {
+            let i = 0;
+            const got = stream.all((x) => {
+                i++;
+                return x !== 5;
+            });
 
-        expect(got).toBe(false);
-        expect(i).toBe(5);
+            expect(got).toBe(false);
+            expect(i).toBe(5);
+        }
     });
 
     test("all should have the correct return type depending on the error handler", () => {
@@ -824,25 +930,33 @@ describe("ArrayStream", () => {
     });
 
     test("find should return the first item that matches the predicate", () => {
-        let i = 0;
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).find((x) => {
-            i++;
-            return x === 5;
-        });
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ])) {
+            let i = 0;
+            const got = stream.find((x) => {
+                i++;
+                return x === 5;
+            });
 
-        expect(got).toBe(5);
-        expect(i).toBe(5);
+            expect(got).toBe(5);
+            expect(i).toBe(5);
+        }
     });
 
     test("find should return null if no item matches the predicate", () => {
-        let i = 0;
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9]).find((x) => {
-            i++;
-            return x === -1;
-        });
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ])) {
+            let i = 0;
+            const got = stream.find((x) => {
+                i++;
+                return x === -1;
+            });
 
-        expect(got).toBeNull();
-        expect(i).toBe(9);
+            expect(got).toBeNull();
+            expect(i).toBe(9);
+        }
     });
 
     test("find should have the correct return type depending on the error handler", () => {
@@ -1075,42 +1189,52 @@ describe("ArrayStream", () => {
     });
 
     test("reduce should reduce the remaining items after all operations have been performed", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14])
-            .map((x) => ({ value: x * 2 }))
-            .reduce((acc, next) => ({ total: next.value + acc.total }), {
-                total: 0,
-            });
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14,
+        ])) {
+            const got = stream
+                .map((x) => ({ value: x * 2 }))
+                .reduce((acc, next) => ({ total: next.value + acc.total }), {
+                    total: 0,
+                });
 
-        expect(got).toEqual({ total: 162 });
+            expect(got).toEqual({ total: 162 });
+        }
     });
 
-    test("reduce should take into account takes and filters", () => {
-        const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14])
-            .filter((x) => x % 2 === 0)
-            .take(6)
-            .map((x) => ({ value: x * 2 }))
-            .reduce((acc, next) => ({ total: next.value + acc.total }), {
-                total: 0,
-            });
+    test("reduce should take into account other operations such as take and filter", () => {
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14,
+        ])) {
+            const got = stream
+                .filter((x) => x % 2 === 0)
+                .take(6)
+                .map((x) => ({ value: x * 2 }))
+                .reduce((acc, next) => ({ total: next.value + acc.total }), {
+                    total: 0,
+                });
 
-        expect(got).toEqual({ total: 84 });
+            expect(got).toEqual({ total: 84 });
+        }
     });
 
-    test("reduce should reduce the array from left to right", () => {
-        const got = new ArrayStream([
+    test("reduce should reduce the array from start to end", () => {
+        for (const stream of makeArrayArrayStreams([
             { val: 1 },
             { val: 2 },
             { val: 3 },
             { val: 4 },
-        ]).reduce<{ val: number }[]>((acc, next) => {
-            if (acc.length === 2) {
+        ])) {
+            const got = stream.reduce<{ val: number }[]>((acc, next) => {
+                if (acc.length === 2) {
+                    return acc;
+                }
+                acc.push(next);
                 return acc;
-            }
-            acc.push(next);
-            return acc;
-        }, []);
+            }, []);
 
-        expect(got).toEqual([{ val: 1 }, { val: 2 }]);
+            expect(got).toEqual([{ val: 1 }, { val: 2 }]);
+        }
     });
 
     test("reduce should have the correct return type depending on the error handler", () => {
@@ -1192,6 +1316,15 @@ describe("ArrayStream", () => {
         });
     });
 
+    test("collect should exhaust the iterator and collect the data into an array", () => {
+        for (const stream of makeArrayArrayStreams([
+            1, 2, 3, 4, 5, 6, 7, 8, 9,
+        ])) {
+            const got = stream.collect();
+            expect(got).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+        }
+    });
+
     test("collect should have the correct return type depending on the error handler", () => {
         const stream = new ArrayStream(["a", "b", "c"])
             .map((x) => ({ x }))
@@ -1251,7 +1384,9 @@ describe("ArrayStream", () => {
     });
 
     test("read should rethrow the errors with more context if errors arise during operations and the handler is Breaker", () => {
-        const stream = new ArrayStream([1, 2, 3], new Breaker()).map((x) => {
+        const stream = new ArrayStream([1, 2, 3], new Breaker(), {
+            useIteratorHelpersIfAvailable: false,
+        }).map((x) => {
             if (x === 2) {
                 throw new Error("Error");
             }
@@ -1297,7 +1432,9 @@ describe("ArrayStream", () => {
         }
 
         const settler = new Settler();
-        const stream = new ArrayStream(gen(), settler).map((x) => {
+        const stream = new ArrayStream(gen(), settler, {
+            useIteratorHelpersIfAvailable: false,
+        }).map((x) => {
             if (x === 2) {
                 throw new Error("Op Error");
             }
@@ -1316,5 +1453,57 @@ describe("ArrayStream", () => {
                 "Error occurred at item at index 2 in iterator: Cycle Error",
             ],
         });
+    });
+
+    test("every should return the same values as all", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
+
+        const streamEvery = new ArrayStream(gen()).every((x) => x > 0);
+        const streamAll = new ArrayStream(gen()).all((x) => x > 0);
+
+        expect(streamEvery).toEqual(streamAll);
+    });
+
+    test("some should return the same values as any", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
+
+        const streamSome = new ArrayStream(gen()).some((x) => x > 4);
+        const streamAny = new ArrayStream(gen()).any((x) => x > 4);
+
+        expect(streamSome).toEqual(streamAny);
+    });
+
+    test("drop should return the same values as skip", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
+
+        const streamDrop = new ArrayStream(gen()).drop(2);
+        const streamSkip = new ArrayStream(gen()).skip(2);
+
+        expect(streamSkip).toEqual(streamDrop);
+    });
+
+    test("toArray should return the same values as collect", () => {
+        function* gen() {
+            yield 1;
+            yield 2;
+            yield 3;
+        }
+
+        const streamToArray = new ArrayStream(gen()).toArray();
+        const streamCollect = new ArrayStream(gen()).collect();
+
+        expect(streamToArray).toEqual(streamCollect);
     });
 });

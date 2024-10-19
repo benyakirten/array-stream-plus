@@ -74,13 +74,13 @@ A writeup of benchmarks is available [here](./BENCHMARK.md). The conclusion: use
 
 I would be overjoyed if anyone wanted to contribute! Please check out the [Contribution Guide](./CONTRIBUTING.md) to get started.
 
-## Links
-
-[Repository](https://github.com/benyakirten/array-stream-plus)
-
-[Docs](https://benyakirten.github.io/array-stream-plus/)
-
 ## Changelog
+
+### 1.1.0
+
+-   Add alternate names for the skip/all/any methods as drop/every/some to be consistent with iterator helpers
+-   Add options to the synchronous `ArrayStream`, which allows iterator helpers to be used (enabled by default)
+-   If the `useIteratorHelpersIfAvailable` option is enabled then, if iterator helpers are available, they will be used.
 
 ### 1.0.1
 
