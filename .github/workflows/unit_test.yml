@@ -12,8 +12,6 @@ jobs:
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
-      - name: print bun version
-        run: echo `bun --version`
       - name: install dependencies
         run: bun install
       - name: lint
