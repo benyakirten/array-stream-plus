@@ -79,6 +79,7 @@ export class ArrayStream<
     ): IterableIterator<Stream> {
         if (Symbol.iterator in input) {
             if (
+                "Iterator" in globalThis &&
                 "from" in Iterator &&
                 this.options.useIteratorHelpersIfAvailable
             ) {
