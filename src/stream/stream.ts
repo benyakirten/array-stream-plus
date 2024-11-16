@@ -47,6 +47,7 @@ export class ArrayStream<
 > {
     private input: IterableIterator<Input>;
     private ops: Op[] = [];
+    private visitedItems: Input[] = [];
 
     /**
      * ArrayStream can be initialized with an array or a generator function, i.e.
@@ -659,7 +660,7 @@ export class ArrayStream<
 
         let result = initialValue;
         for (let i = intermediate.length - 1; i >= 0; i--) {
-            const item = intermediate[i];
+            const item = intermediate[i]!;
 
             try {
                 result = op(result, item as unknown as Input);
@@ -867,7 +868,7 @@ export class ArrayStream<
     ): HandlerReturnType<typeof this.handler, Input, Input | null> {
         const items = [...this.read()];
         for (let i = items.length - 1; i >= 0; i--) {
-            if (fn(items[i])) {
+            if (fn(items[i]!)) {
                 // @ts-expect-error: TypeScript gonna typescript
                 return this.handler.compile(items[i]);
             }
@@ -900,7 +901,7 @@ export class ArrayStream<
     ): HandlerReturnType<typeof this.handler, Input, number> {
         const items = [...this.read()];
         for (let i = items.length - 1; i >= 0; i--) {
-            if (fn(items[i])) {
+            if (fn(items[i]!)) {
                 // @ts-expect-error: TypeScript gonna typescript
                 return this.handler.compile(i);
             }
@@ -1007,9 +1008,10 @@ export class ArrayStream<
     public *read(): Generator<Input, void, unknown> {
         let index = 0;
         let item: ItemResult<Input>;
+        const iter = this.itemIter();
         while (true) {
             try {
-                const next = this.input.next();
+                const next = iter.next();
                 if (next.done) {
                     break;
                 }
@@ -1026,6 +1028,23 @@ export class ArrayStream<
             }
 
             index++;
+        }
+    }
+
+    private *itemIter() {
+        while (true) {
+            while (this.visitedItems.length > 0) {
+                const item = this.visitedItems.pop();
+                if (item !== undefined) {
+                    yield item;
+                }
+            }
+            const next = this.input.next();
+            if (next.done) {
+                break;
+            }
+
+            yield next.value;
         }
     }
 
@@ -1072,5 +1091,15 @@ export class ArrayStream<
         }
 
         return { value: item, outcome: "success" };
+    }
+
+    public peek(): Input | null {
+        const item = this.read().next();
+        if (item.done) {
+            return null;
+        }
+
+        this.visitedItems.push(item.value);
+        return item.value;
     }
 }
