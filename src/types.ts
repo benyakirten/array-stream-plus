@@ -100,7 +100,7 @@ export interface ErrorHandler<Input, Output> {
     registerOpError(
         error: unknown,
         index: number,
-        item: Input,
+        item: Input | undefined,
         op: string
     ): void;
 

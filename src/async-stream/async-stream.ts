@@ -599,6 +599,9 @@ export class AsyncArrayStream<
         let result = initialValue;
         for (let i = intermediate.length - 1; i >= 0; i--) {
             const item = intermediate[i];
+            if (item === undefined) {
+                continue;
+            }
             try {
                 result = await op(result, item as unknown as Input);
             } catch (e) {
@@ -783,9 +786,13 @@ export class AsyncArrayStream<
     ): Promise<HandlerReturnType<typeof this.handler, Input, Input | null>> {
         const items = await this.toUncompiledArray();
         for (let i = items.length - 1; i >= 0; i--) {
-            if (await fn(items[i])) {
+            const item = items[i];
+            if (item === undefined) {
+                continue;
+            }
+            if (await fn(item)) {
                 // @ts-expect-error: The handler is narrowed to the new type
-                return this.handler.compile(items[i]);
+                return this.handler.compile(item);
             }
         }
 
@@ -816,7 +823,11 @@ export class AsyncArrayStream<
     ): Promise<HandlerReturnType<typeof this.handler, Input, number>> {
         const items = await this.toUncompiledArray();
         for (let i = items.length - 1; i >= 0; i--) {
-            if (await fn(items[i])) {
+            const item = items[i];
+            if (item === undefined) {
+                continue;
+            }
+            if (await fn(item)) {
                 // @ts-expect-error: The handler is narrowed to the new type
                 return this.handler.compile(i);
             }
