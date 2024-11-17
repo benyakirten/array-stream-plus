@@ -561,6 +561,35 @@ export class ArrayStream<
         return new ArrayStream(fuseGenerator(), this.handler);
     }
 
+    /**
+     * Removes duplicate items from the stream based on a provided callback function.
+     * If no callback is provided, a shallow comparison is used, e.g..
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
+     *   .dedupe()
+     *   .collect();
+     * console.log(stream); // [1, 2, 3, 4, 5]
+     * ```
+     */
+    public dedupe<T>(
+        // @ts-expect-error: The default CB means that the type of T is Input
+        cb: (item: Input) => T = (item) => item
+    ): ArrayStream<Input, Handler> {
+        const iter = this.read();
+        function* dedupeGenerator() {
+            const seen = new Set<T>();
+            for (const item of iter) {
+                const key = cb(item);
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    yield item;
+                }
+            }
+        }
+
+        return new ArrayStream(dedupeGenerator(), this.handler);
+    }
+
     // Finalizer methods
     /**
      * Consume the iteraor and return however many items it contains, i.e.
