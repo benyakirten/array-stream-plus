@@ -1640,18 +1640,28 @@ describe("ArrayStream", () => {
             expect(stream.take(3).collect()).toEqual([0, 1, 2]);
         });
 
-        it("should return the correct type based on the error handler", () => {
-            const stream1 = new ArrayStream([1, 2, 3]).peek();
-            assertType<number | null>(stream1);
-            expect(stream1).toEqual(1);
+        it("should not affect the final result in the case of errors based on the error handler", () => {
+            // eslint-disable-next-line require-yield
+            function* gen(): Generator<number> {
+                throw new Error("Error");
+            }
+            const stream1 = new ArrayStream(gen(), new Breaker<number>());
+            expect(() => stream1.peek()).toThrowError(
+                "Error occurred at item at index 0 in iterator: Error"
+            );
 
-            const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).peek();
-            assertType<number | null>(stream2);
-            expect(stream2).toEqual(1);
+            const stream2 = new ArrayStream(gen(), new Ignorer());
+            stream2.peek();
+            expect(stream2.collect()).toEqual([]);
 
-            const stream3 = new ArrayStream([1, 2, 3], new Settler()).peek();
-            assertType<number | null>(stream3);
-            expect(stream3).toEqual(1);
+            const stream3 = new ArrayStream(gen(), new Settler());
+            stream3.peek();
+            expect(stream3.collect()).toEqual({
+                data: [],
+                errors: [
+                    "Error occurred at item at index 0 in iterator: Error",
+                ],
+            });
         });
     });
 });
