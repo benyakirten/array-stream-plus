@@ -1762,4 +1762,94 @@ describe("AsyncArrayStream", () => {
             });
         });
     });
+
+    describe("peek", () => {
+        it("should return the next item without advancing the iterator", async () => {
+            const input = [1, 2, 3];
+            const stream = new AsyncArrayStream(input);
+
+            const peeked = await stream.peek();
+            expect(peeked).toBe(1);
+
+            const result = await stream.collect();
+            expect(result).toEqual([1, 2, 3]);
+        });
+
+        it("should return null if the iterator is exhausted", async () => {
+            const input = [1];
+            const stream = new AsyncArrayStream(input);
+
+            await stream.collect();
+            const peeked = await stream.peek();
+            expect(peeked).toBe(null);
+        });
+
+        it("should work with infinite generators", async () => {
+            async function* gen() {
+                let i = 0;
+                while (true) {
+                    yield i++;
+                }
+            }
+
+            const stream = new AsyncArrayStream(gen());
+            const peeked = await stream.peek();
+            expect(peeked).toBe(0);
+
+            const result = await stream.take(5).collect();
+            expect(result).toEqual([0, 1, 2, 3, 4]);
+        });
+
+        it("should correctly change the type of the stream based on the error handler", async () => {
+            const breakerStream = new AsyncArrayStream(
+                [1, 2, 3],
+                new Breaker()
+            );
+            const peekedBreaker = await breakerStream.peek();
+            assertType<number | null>(peekedBreaker);
+            expect(peekedBreaker).toBe(1);
+
+            const ignorerStream = new AsyncArrayStream(
+                [1, 2, 3],
+                new Ignorer()
+            );
+            const peekedIgnorer = await ignorerStream.peek();
+            assertType<number | null>(peekedIgnorer);
+            expect(peekedIgnorer).toBe(1);
+
+            const settlerStream = new AsyncArrayStream(
+                [1, 2, 3],
+                new Settler()
+            );
+            const peekedSettler = await settlerStream.peek();
+            assertType<number | null>(peekedSettler);
+            expect(peekedSettler).toBe(1);
+        });
+
+        it("should not affect the final result in the case of errors based on the error handler", async () => {
+            // eslint-disable-next-line require-yield
+            function* gen(): Generator<number> {
+                throw new Error("Error");
+            }
+            const stream1 = new AsyncArrayStream(gen(), new Breaker<number>());
+            await expect(async () => await stream1.peek()).rejects.toThrowError(
+                "Error occurred at item at index 0 in iterator: Error"
+            );
+
+            const stream2 = new AsyncArrayStream(gen(), new Ignorer());
+            stream2.peek();
+            const stream2items = await stream2.collect();
+            expect(stream2items).toEqual([]);
+
+            const stream3 = new AsyncArrayStream(gen(), new Settler());
+            stream3.peek();
+            const stream3items = await stream3.collect();
+            expect(stream3items).toEqual({
+                data: [],
+                errors: [
+                    "Error occurred at item at index 0 in iterator: Error",
+                ],
+            });
+        });
+    });
 });

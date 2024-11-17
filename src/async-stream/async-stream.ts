@@ -1081,7 +1081,7 @@ export class AsyncArrayStream<
     }
 
     public async peek(): Promise<Input | null> {
-        const next = await this.input.next();
+        const next = await this.read().next();
         if (next.done) {
             return null;
         }
