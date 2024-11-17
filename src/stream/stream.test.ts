@@ -1777,21 +1777,21 @@ describe("ArrayStream", () => {
             expect(got).toEqual([2, 4]);
         });
 
-        // it("should work with infinite generators", async () => {
-        //     function* generate() {
-        //         let i = 0;
-        //         while (true) {
-        //             yield i % 3;
-        //             i++;
-        //         }
-        //     }
+        it("should work with infinite generators", async () => {
+            function* generate() {
+                let i = 0;
+                while (true) {
+                    yield i % 3;
+                    i++;
+                }
+            }
 
-        //     const got = await new ArrayStream(generate())
-        //         .asyncDedupe()
-        //         .take(3)
-        //         .collect();
-        //     expect(got).toEqual([0, 1, 2]);
-        // });
+            const got = await new ArrayStream(generate())
+                .asyncDedupe()
+                .take(3)
+                .collect();
+            expect(got).toEqual([0, 1, 2]);
+        });
 
         it("should return the correct type based on the error handler", async () => {
             const stream1 = new ArrayStream([1, 2, 2, 3]).asyncDedupe();
