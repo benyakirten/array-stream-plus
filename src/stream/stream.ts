@@ -591,6 +591,20 @@ export class ArrayStream<
         return new ArrayStream(dedupeGenerator(), this.handler);
     }
 
+    /**
+     * Removes duplicate items from the stream asynchronously based on the provided callback function.
+     * If no callback is provided, a shallow comparison is used.
+     *
+     * Functionally identical to the `dedupe` method, but it allows for an asynchronous callback but returns
+     * an `AsyncArrayStream` instead of an `ArrayStream`, e.g.
+     *
+     * ```ts
+     * const stream = await new ArrayStream([1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
+     *   .asyncDedupe(item => Promise.resolve(item))
+     *   .collect();
+     * console.log(stream); // [1, 2, 3, 4, 5]
+     * ```
+     */
     public asyncDedupe<T>(
         // @ts-expect-error: The default CB means that the type of T is Input
         cb: (item: Input) => Promise<T> | T = (item) => item
@@ -1154,6 +1168,7 @@ export class ArrayStream<
      * const items = stream.collect();
      * console.log(items); // [1, 2, 3, 4, 5]
      * console.log(stream.peek()); // null
+     * ```
      */
     public peek(): Input | null {
         const item = this.read().next();
