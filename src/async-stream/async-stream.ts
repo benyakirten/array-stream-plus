@@ -46,6 +46,7 @@ export class AsyncArrayStream<
 > {
     private input: AsyncIterableIterator<Input>;
     private ops: AsyncOp[] = [];
+    private visitedItems: Input[] = [];
 
     /**
      * Input can be an array, an async iterable or a promise generator. If the promise generator returns
@@ -979,14 +980,25 @@ export class AsyncArrayStream<
     public async *read(): AsyncIterableIterator<Input> {
         let index = 0;
         let item: ItemResult<Input>;
+        const iter = this.itemIter();
+
         while (true) {
             try {
-                const next = await this.input.next();
-                if (next.done) {
+                const nextItem = await iter.next();
+                if (nextItem.done) {
                     break;
                 }
 
-                item = await this.applyTransformations(next.value, index);
+                const [next, hasBeenPeeked] = nextItem.value;
+
+                // If the item has already been peeked, it means the value
+                // has already been transformed and the outcome known.
+                item = hasBeenPeeked
+                    ? {
+                          value: next,
+                          outcome: "success",
+                      }
+                    : await this.applyTransformations(next, index);
                 if (item.outcome !== "success") {
                     index++;
                     continue;
@@ -998,6 +1010,28 @@ export class AsyncArrayStream<
             }
 
             index++;
+        }
+    }
+
+    /**
+     * Returns the next item in the iterator, prepended by items that have been seen by .peek.
+     * It returns a tuple of [value, boolean] where the boolean is true if the item is from .peek.
+     * This is to prevent the items from being
+     */
+    private async *itemIter(): AsyncGenerator<[Input, boolean], void, unknown> {
+        while (true) {
+            while (this.visitedItems.length > 0) {
+                const item = this.visitedItems.pop();
+                if (item !== undefined) {
+                    yield [item, true];
+                }
+            }
+            const next = await this.input.next();
+            if (next.done) {
+                break;
+            }
+
+            yield [next.value, false];
         }
     }
 
@@ -1044,5 +1078,15 @@ export class AsyncArrayStream<
         }
 
         return { value: item, outcome: "success" };
+    }
+
+    public async peek(): Promise<Input | null> {
+        const next = await this.input.next();
+        if (next.done) {
+            return null;
+        }
+
+        this.visitedItems.push(next.value);
+        return next.value;
     }
 }

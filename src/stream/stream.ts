@@ -1046,6 +1046,7 @@ export class ArrayStream<
         let index = 0;
         let item: ItemResult<Input>;
         const iter = this.itemIter();
+
         while (true) {
             try {
                 const nextItem = iter.next();
