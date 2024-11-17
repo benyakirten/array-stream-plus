@@ -1664,4 +1664,75 @@ describe("ArrayStream", () => {
             });
         });
     });
+
+    describe("dedupe", () => {
+        it("should remove duplicate items using shallow equality based on the default callback", () => {
+            const got = new ArrayStream([1, 2, 2, 3, 4, 4, 5])
+                .dedupe()
+                .collect();
+            expect(got).toEqual([1, 2, 3, 4, 5]);
+        });
+
+        it("should fail to remove duplicate reference items", () => {
+            const obj = { a: 1 };
+            const got = new ArrayStream([obj, obj, { a: 1 }])
+                .dedupe()
+                .collect();
+            expect(got).toEqual([obj, { a: 1 }]);
+        });
+
+        it("should remove duplicate items based on a custom callback", () => {
+            const got = new ArrayStream([
+                { id: 1, value: "a" },
+                { id: 2, value: "b" },
+                { id: 1, value: "c" },
+                { id: 3, value: "d" },
+            ])
+                .dedupe((item) => item.id)
+                .collect();
+            expect(got).toEqual([
+                { id: 1, value: "a" },
+                { id: 2, value: "b" },
+                { id: 3, value: "d" },
+            ]);
+        });
+
+        it("should work with other operations", () => {
+            const got = new ArrayStream([1, 2, 2, 3, 4, 4, 5])
+                .filter((x) => x % 2 === 0)
+                .dedupe()
+                .collect();
+            expect(got).toEqual([2, 4]);
+        });
+
+        it("should work with infinite generators", () => {
+            function* generate() {
+                let i = 0;
+                while (true) {
+                    yield i % 3;
+                    i++;
+                }
+            }
+
+            const got = new ArrayStream(generate()).dedupe().take(3).collect();
+            expect(got).toEqual([0, 1, 2]);
+        });
+
+        it("should return the correct type based on the error handler", () => {
+            const stream1 = new ArrayStream([1, 2, 2, 3]).dedupe();
+            assertType<ArrayStream<number, Breaker<number>>>(stream1);
+
+            const stream2 = new ArrayStream(
+                [1, 2, 2, 3],
+                new Ignorer()
+            ).dedupe();
+            assertType<ArrayStream<number, Ignorer>>(stream2);
+
+            const stream3 = new ArrayStream(
+                [1, 2, 2, 3],
+                new Settler()
+            ).dedupe();
+            assertType<ArrayStream<number, Settler<number>>>(stream3);
+        });
+    });
 });
