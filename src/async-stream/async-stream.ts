@@ -46,6 +46,7 @@ export class AsyncArrayStream<
 > {
     private input: AsyncIterableIterator<Input>;
     private ops: AsyncOp[] = [];
+    private visitedItems: Input[] = [];
 
     /**
      * Input can be an array, an async iterable or a promise generator. If the promise generator returns
@@ -80,6 +81,14 @@ export class AsyncArrayStream<
             return gen();
         } else if (Symbol.asyncIterator in input) {
             return input[Symbol.asyncIterator]();
+        } else if (Symbol.iterator in input) {
+            const inputClone = input[Symbol.iterator]();
+            async function* gen() {
+                for (const item of inputClone) {
+                    yield item;
+                }
+            }
+            return gen();
         } else if (Array.isArray(input)) {
             const inputClone = [...input];
             async function* gen() {
@@ -515,6 +524,36 @@ export class AsyncArrayStream<
         return new AsyncArrayStream(fuseGenerator(), this.handler);
     }
 
+    /**
+     * Removes duplicate items from the stream based on a provided callback function.
+     * If no callback is provided, a shallow comparison is used, e.g..
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
+     *   .dedupe()
+     *   .collect();
+     * console.log(stream); // [1, 2, 3, 4, 5]
+     * ```
+     */
+    public dedupe<T>(
+        // @ts-expect-error: The default CB means that the type of T is Input
+        cb: (item: Input) => Promise<T> | T = (item) => item
+    ): AsyncArrayStream<Input, Handler> {
+        const iter = this.read();
+        async function* dedupeGenerator() {
+            const seen = new Set<T>();
+            for await (const item of iter) {
+                const key = await cb(item);
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    yield item;
+                }
+            }
+        }
+
+        // @ts-expect-error: The handler is narrowed to the new type
+        return new AsyncArrayStream(dedupeGenerator(), this.handler);
+    }
+
     // Methods that collect the iterator
     /**
      * Consume the iterator and return however many items it contains, i.e.
@@ -599,6 +638,9 @@ export class AsyncArrayStream<
         let result = initialValue;
         for (let i = intermediate.length - 1; i >= 0; i--) {
             const item = intermediate[i];
+            if (item === undefined) {
+                continue;
+            }
             try {
                 result = await op(result, item as unknown as Input);
             } catch (e) {
@@ -783,9 +825,13 @@ export class AsyncArrayStream<
     ): Promise<HandlerReturnType<typeof this.handler, Input, Input | null>> {
         const items = await this.toUncompiledArray();
         for (let i = items.length - 1; i >= 0; i--) {
-            if (await fn(items[i])) {
+            const item = items[i];
+            if (item === undefined) {
+                continue;
+            }
+            if (await fn(item)) {
                 // @ts-expect-error: The handler is narrowed to the new type
-                return this.handler.compile(items[i]);
+                return this.handler.compile(item);
             }
         }
 
@@ -816,7 +862,11 @@ export class AsyncArrayStream<
     ): Promise<HandlerReturnType<typeof this.handler, Input, number>> {
         const items = await this.toUncompiledArray();
         for (let i = items.length - 1; i >= 0; i--) {
-            if (await fn(items[i])) {
+            const item = items[i];
+            if (item === undefined) {
+                continue;
+            }
+            if (await fn(item)) {
                 // @ts-expect-error: The handler is narrowed to the new type
                 return this.handler.compile(i);
             }
@@ -930,14 +980,25 @@ export class AsyncArrayStream<
     public async *read(): AsyncIterableIterator<Input> {
         let index = 0;
         let item: ItemResult<Input>;
+        const iter = this.itemIter();
+
         while (true) {
             try {
-                const next = await this.input.next();
-                if (next.done) {
+                const nextItem = await iter.next();
+                if (nextItem.done) {
                     break;
                 }
 
-                item = await this.applyTransformations(next.value, index);
+                const [next, hasBeenPeeked] = nextItem.value;
+
+                // If the item has already been peeked, it means the value
+                // has already been transformed and the outcome known.
+                item = hasBeenPeeked
+                    ? {
+                          value: next,
+                          outcome: "success",
+                      }
+                    : await this.applyTransformations(next, index);
                 if (item.outcome !== "success") {
                     index++;
                     continue;
@@ -949,6 +1010,28 @@ export class AsyncArrayStream<
             }
 
             index++;
+        }
+    }
+
+    /**
+     * Returns the next item in the iterator, prepended by items that have been seen by .peek.
+     * It returns a tuple of [value, boolean] where the boolean is true if the item is from .peek.
+     * This is to prevent the items from being
+     */
+    private async *itemIter(): AsyncGenerator<[Input, boolean], void, unknown> {
+        while (true) {
+            while (this.visitedItems.length > 0) {
+                const item = this.visitedItems.pop();
+                if (item !== undefined) {
+                    yield [item, true];
+                }
+            }
+            const next = await this.input.next();
+            if (next.done) {
+                break;
+            }
+
+            yield [next.value, false];
         }
     }
 
@@ -995,5 +1078,15 @@ export class AsyncArrayStream<
         }
 
         return { value: item, outcome: "success" };
+    }
+
+    public async peek(): Promise<Input | null> {
+        const next = await this.read().next();
+        if (next.done) {
+            return null;
+        }
+
+        this.visitedItems.push(next.value);
+        return next.value;
     }
 }

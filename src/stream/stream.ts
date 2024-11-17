@@ -1,3 +1,4 @@
+import { AsyncArrayStream } from "../async-stream/async-stream";
 import { Breaker } from "../errors/handlers";
 import type {
     Streamable,
@@ -47,6 +48,7 @@ export class ArrayStream<
 > {
     private input: IterableIterator<Input>;
     private ops: Op[] = [];
+    private visitedItems: Input[] = [];
 
     /**
      * ArrayStream can be initialized with an array or a generator function, i.e.
@@ -560,6 +562,42 @@ export class ArrayStream<
         return new ArrayStream(fuseGenerator(), this.handler);
     }
 
+    /**
+     * Removes duplicate items from the stream based on a provided callback function.
+     * If no callback is provided, a shallow comparison is used, e.g..
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
+     *   .dedupe()
+     *   .collect();
+     * console.log(stream); // [1, 2, 3, 4, 5]
+     * ```
+     */
+    public dedupe<T>(
+        // @ts-expect-error: The default CB means that the type of T is Input
+        cb: (item: Input) => T = (item) => item
+    ): ArrayStream<Input, Handler> {
+        const iter = this.read();
+        function* dedupeGenerator() {
+            const seen = new Set<T>();
+            for (const item of iter) {
+                const key = cb(item);
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    yield item;
+                }
+            }
+        }
+
+        return new ArrayStream(dedupeGenerator(), this.handler);
+    }
+
+    public asyncDedupe<T>(
+        // @ts-expect-error: The default CB means that the type of T is Input
+        cb: (item: Input) => Promise<T> | T = (item) => item
+    ): AsyncArrayStream<Input, Handler> {
+        return new AsyncArrayStream(this.read(), this.handler).dedupe(cb);
+    }
+
     // Finalizer methods
     /**
      * Consume the iteraor and return however many items it contains, i.e.
@@ -659,7 +697,7 @@ export class ArrayStream<
 
         let result = initialValue;
         for (let i = intermediate.length - 1; i >= 0; i--) {
-            const item = intermediate[i];
+            const item = intermediate[i]!;
 
             try {
                 result = op(result, item as unknown as Input);
@@ -867,7 +905,7 @@ export class ArrayStream<
     ): HandlerReturnType<typeof this.handler, Input, Input | null> {
         const items = [...this.read()];
         for (let i = items.length - 1; i >= 0; i--) {
-            if (fn(items[i])) {
+            if (fn(items[i]!)) {
                 // @ts-expect-error: TypeScript gonna typescript
                 return this.handler.compile(items[i]);
             }
@@ -900,7 +938,7 @@ export class ArrayStream<
     ): HandlerReturnType<typeof this.handler, Input, number> {
         const items = [...this.read()];
         for (let i = items.length - 1; i >= 0; i--) {
-            if (fn(items[i])) {
+            if (fn(items[i]!)) {
                 // @ts-expect-error: TypeScript gonna typescript
                 return this.handler.compile(i);
             }
@@ -1007,14 +1045,25 @@ export class ArrayStream<
     public *read(): Generator<Input, void, unknown> {
         let index = 0;
         let item: ItemResult<Input>;
+        const iter = this.itemIter();
+
         while (true) {
             try {
-                const next = this.input.next();
-                if (next.done) {
+                const nextItem = iter.next();
+                if (nextItem.done) {
                     break;
                 }
 
-                item = this.applyTransformations(next.value, index);
+                const [next, hasBeenPeeked] = nextItem.value;
+
+                // If the item has already been peeked, it means the value
+                // has already been transformed and the outcome known.
+                item = hasBeenPeeked
+                    ? {
+                          value: next,
+                          outcome: "success",
+                      }
+                    : this.applyTransformations(next, index);
                 if (item.outcome !== "success") {
                     index++;
                     continue;
@@ -1026,6 +1075,28 @@ export class ArrayStream<
             }
 
             index++;
+        }
+    }
+
+    /**
+     * Returns the next item in the iterator, prepended by items that have been seen by .peek.
+     * It returns a tuple of [value, boolean] where the boolean is true if the item is from .peek.
+     * This is to prevent the items from being
+     */
+    private *itemIter(): Generator<[Input, boolean], void, unknown> {
+        while (true) {
+            while (this.visitedItems.length > 0) {
+                const item = this.visitedItems.pop();
+                if (item !== undefined) {
+                    yield [item, true];
+                }
+            }
+            const next = this.input.next();
+            if (next.done) {
+                break;
+            }
+
+            yield [next.value, false];
         }
     }
 
@@ -1072,5 +1143,25 @@ export class ArrayStream<
         }
 
         return { value: item, outcome: "success" };
+    }
+
+    /**
+     * View the next item in the iterator without consuming it.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5]);
+     * console.log(stream.peek()); // 1
+     * console.log(stream.peek()); // 1
+     * const items = stream.collect();
+     * console.log(items); // [1, 2, 3, 4, 5]
+     * console.log(stream.peek()); // null
+     */
+    public peek(): Input | null {
+        const item = this.read().next();
+        if (item.done) {
+            return null;
+        }
+
+        this.visitedItems.push(item.value);
+        return item.value;
     }
 }

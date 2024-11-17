@@ -20,7 +20,8 @@ export type AsyncStreamable<Input> =
     | { [Symbol.asyncIterator]: () => AsyncIterableIterator<Input> }
     | Input[]
     | AsyncIterableIterator<Input>
-    | { promise: () => Promise<Input | null> };
+    | { promise: () => Promise<Input | null> }
+    | IterableIterator<Input>;
 
 export type Streamable<Input> =
     | { [Symbol.iterator]: () => IterableIterator<Input> }
@@ -100,7 +101,7 @@ export interface ErrorHandler<Input, Output> {
     registerOpError(
         error: unknown,
         index: number,
-        item: Input,
+        item: Input | undefined,
         op: string
     ): void;
 
