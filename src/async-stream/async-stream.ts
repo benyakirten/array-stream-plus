@@ -528,7 +528,7 @@ export class AsyncArrayStream<
      * Removes duplicate items from the stream based on a provided callback function.
      * If no callback is provided, a shallow comparison is used, e.g..
      * ```ts
-     * const stream = new ArrayStream([1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
+     * const stream = await new AsyncArrayStream([1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
      *   .dedupe()
      *   .collect();
      * console.log(stream); // [1, 2, 3, 4, 5]
@@ -1080,6 +1080,18 @@ export class AsyncArrayStream<
         return { value: item, outcome: "success" };
     }
 
+    /**
+     * Asynchronously retrieves the next item from the stream without advancing the stream.
+     * If the stream has reached the end, it returns `null`, e.g.
+     * ```ts
+     * const stream = new AsyncArrayStream([1, 2, 3, 4, 5]);
+     * console.log(await stream.peek()); // 1
+     * console.log(await stream.peek()); // 1
+     * const items = await stream.collect();
+     * console.log(items); // [1, 2, 3, 4, 5]
+     * console.log(await stream.peek()); // null
+     * ```
+     */
     public async peek(): Promise<Input | null> {
         const next = await this.read().next();
         if (next.done) {
