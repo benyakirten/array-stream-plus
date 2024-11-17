@@ -1684,4 +1684,82 @@ describe("AsyncArrayStream", () => {
             });
         });
     });
+
+    describe("dedupe", () => {
+        it("should remove duplicate items based on the default callback", async () => {
+            const input = [1, 2, 2, 3, 3, 3, 4];
+            const stream = new AsyncArrayStream(input).dedupe();
+            const result = await stream.collect();
+            expect(result).toEqual([1, 2, 3, 4]);
+        });
+
+        it("should not remove reference items correctly with the default callback", async () => {
+            const obj = { id: 1 };
+            const input = [obj, obj, { id: 1 }];
+            const stream = new AsyncArrayStream(input).dedupe();
+            const result = await stream.collect();
+            expect(result).toEqual([obj, { id: 1 }]);
+        });
+
+        it("should remove duplicate items based on a custom callback", async () => {
+            const input = [{ id: 1 }, { id: 2 }, { id: 2 }, { id: 3 }];
+            const stream = new AsyncArrayStream(input).dedupe(
+                (item) => item.id
+            );
+            const result = await stream.collect();
+            expect(result).toEqual([{ id: 1 }, { id: 2 }, { id: 3 }]);
+        });
+
+        it("should work correctly with a synchronous callback", async () => {
+            const input = [1, 2, 2, 3, 3, 3, 4];
+            const stream = new AsyncArrayStream(input).dedupe((item) => item);
+            const result = await stream.collect();
+            expect(result).toEqual([1, 2, 3, 4]);
+        });
+
+        it("should work correctly with an asynchronous callback", async () => {
+            const input = [1, 2, 2, 3, 3, 3, 4];
+            const stream = new AsyncArrayStream(input).dedupe(
+                async (item) => item
+            );
+            const result = await stream.collect();
+            expect(result).toEqual([1, 2, 3, 4]);
+        });
+
+        it("should correctly change the type of the stream based on the error handler", async () => {
+            const breakerStream = new AsyncArrayStream(
+                [1, 2, 2, 3],
+                new Breaker()
+            ).dedupe();
+            assertType<AsyncArrayStream<number, Breaker<number>>>(
+                breakerStream
+            );
+            const breakerStreamData = await breakerStream.collect();
+            assertType<number[]>(breakerStreamData);
+            expect(breakerStreamData).toEqual([1, 2, 3]);
+
+            const ignorerStream = new AsyncArrayStream(
+                [1, 2, 2, 3],
+                new Ignorer()
+            ).dedupe();
+            assertType<AsyncArrayStream<number, Ignorer>>(ignorerStream);
+            const ignorerStreamData = await ignorerStream.collect();
+            assertType<number[]>(ignorerStreamData);
+            expect(ignorerStreamData).toEqual([1, 2, 3]);
+
+            const settlerStream = new AsyncArrayStream(
+                [1, 2, 2, 3],
+                new Settler()
+            ).dedupe();
+            assertType<AsyncArrayStream<number, Settler<number>>>(
+                settlerStream
+            );
+            const settlerStreamData = await settlerStream.collect();
+            assertType<SettlerOutput<number[]>>(settlerStreamData);
+            expect(settlerStreamData).toEqual({
+                data: [1, 2, 3],
+                errors: [],
+            });
+        });
+    });
 });
