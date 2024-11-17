@@ -1602,4 +1602,56 @@ describe("ArrayStream", () => {
             });
         });
     });
+
+    describe("peek", () => {
+        it("should return the next item without consuming it", () => {
+            const stream = new ArrayStream([1, 2, 3]);
+            expect(stream.peek()).toEqual(1);
+            expect(stream.peek()).toEqual(1);
+            stream.read().next();
+            expect(stream.peek()).toEqual(2);
+            expect(stream.collect()).toEqual([2, 3]);
+            expect(stream.peek()).toBeNull();
+        });
+
+        it("should return null if the stream is empty", () => {
+            const stream = new ArrayStream<number>([]);
+            expect(stream.peek()).toBeNull();
+        });
+
+        it("should work correctly with other operations", () => {
+            const stream = new ArrayStream([1, 2, 3, 4, 5])
+                .filter((x) => x % 2 === 0)
+                .map((x) => x * 2);
+            expect(stream.peek()).toEqual(4);
+            expect(stream.collect()).toEqual([4, 8]);
+        });
+
+        it("should work correctly with infinite generators", () => {
+            function* generate() {
+                let i = 0;
+                while (true) {
+                    yield i++;
+                }
+            }
+
+            const stream = new ArrayStream(generate());
+            expect(stream.peek()).toEqual(0);
+            expect(stream.take(3).collect()).toEqual([0, 1, 2]);
+        });
+
+        it("should return the correct type based on the error handler", () => {
+            const stream1 = new ArrayStream([1, 2, 3]).peek();
+            assertType<number | null>(stream1);
+            expect(stream1).toEqual(1);
+
+            const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).peek();
+            assertType<number | null>(stream2);
+            expect(stream2).toEqual(1);
+
+            const stream3 = new ArrayStream([1, 2, 3], new Settler()).peek();
+            assertType<number | null>(stream3);
+            expect(stream3).toEqual(1);
+        });
+    });
 });

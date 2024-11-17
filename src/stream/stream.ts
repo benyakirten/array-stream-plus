@@ -1011,12 +1011,21 @@ export class ArrayStream<
         const iter = this.itemIter();
         while (true) {
             try {
-                const next = iter.next();
-                if (next.done) {
+                const nextItem = iter.next();
+                if (nextItem.done) {
                     break;
                 }
 
-                item = this.applyTransformations(next.value, index);
+                const [next, hasBeenPeeked] = nextItem.value;
+
+                // If the item has already been peeked, it means the value
+                // has already been transformed and the outcome known.
+                item = hasBeenPeeked
+                    ? {
+                          value: next,
+                          outcome: "success",
+                      }
+                    : this.applyTransformations(next, index);
                 if (item.outcome !== "success") {
                     index++;
                     continue;
@@ -1031,12 +1040,17 @@ export class ArrayStream<
         }
     }
 
-    private *itemIter() {
+    /**
+     * Returns the next item in the iterator, prepended by items that have been seen by .peek.
+     * It returns a tuple of [value, boolean] where the boolean is true if the item is from .peek.
+     * This is to prevent the items from being
+     */
+    private *itemIter(): Generator<[Input, boolean], void, unknown> {
         while (true) {
             while (this.visitedItems.length > 0) {
                 const item = this.visitedItems.pop();
                 if (item !== undefined) {
-                    yield item;
+                    yield [item, true];
                 }
             }
             const next = this.input.next();
@@ -1044,7 +1058,7 @@ export class ArrayStream<
                 break;
             }
 
-            yield next.value;
+            yield [next.value, false];
         }
     }
 
@@ -1104,9 +1118,6 @@ export class ArrayStream<
      * console.log(stream.peek()); // null
      */
     public peek(): Input | null {
-        if (this.visitedItems.length > 0) {
-            return this.visitedItems[this.visitedItems.length - 1] ?? null;
-        }
         const item = this.read().next();
         if (item.done) {
             return null;
