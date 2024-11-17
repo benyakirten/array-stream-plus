@@ -1,3 +1,4 @@
+import { AsyncArrayStream } from "../async-stream/async-stream";
 import { Breaker } from "../errors/handlers";
 import type {
     Streamable,
@@ -588,6 +589,13 @@ export class ArrayStream<
         }
 
         return new ArrayStream(dedupeGenerator(), this.handler);
+    }
+
+    public asyncDedupe<T>(
+        // @ts-expect-error: The default CB means that the type of T is Input
+        cb: (item: Input) => Promise<T> | T = (item) => item
+    ): AsyncArrayStream<Input, Handler> {
+        return new AsyncArrayStream(this.read(), this.handler).dedupe(cb);
     }
 
     // Finalizer methods

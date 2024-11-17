@@ -20,7 +20,8 @@ export type AsyncStreamable<Input> =
     | { [Symbol.asyncIterator]: () => AsyncIterableIterator<Input> }
     | Input[]
     | AsyncIterableIterator<Input>
-    | { promise: () => Promise<Input | null> };
+    | { promise: () => Promise<Input | null> }
+    | IterableIterator<Input>;
 
 export type Streamable<Input> =
     | { [Symbol.iterator]: () => IterableIterator<Input> }

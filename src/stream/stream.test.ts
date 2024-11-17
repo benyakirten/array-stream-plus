@@ -2,6 +2,7 @@ import { expect, describe, assertType, it } from "vitest";
 
 import { ArrayStream } from "./stream";
 import { Breaker, Ignorer, Settler } from "../errors/handlers";
+import type { AsyncArrayStream } from "../async-stream/async-stream";
 
 describe("ArrayStream", () => {
     // Test functions using both the iterator helpers and the default iteration methods
@@ -1733,6 +1734,80 @@ describe("ArrayStream", () => {
                 new Settler()
             ).dedupe();
             assertType<ArrayStream<number, Settler<number>>>(stream3);
+        });
+    });
+
+    describe("asyncDedupe", () => {
+        it("should remove duplicate items using shallow equality based on the default callback", async () => {
+            const got = await new ArrayStream([1, 2, 2, 3, 4, 4, 5])
+                .asyncDedupe()
+                .collect();
+            expect(got).toEqual([1, 2, 3, 4, 5]);
+        });
+
+        it("should fail to remove duplicate reference items", async () => {
+            const obj = { a: 1 };
+            const got = await new ArrayStream([obj, obj, { a: 1 }])
+                .asyncDedupe()
+                .collect();
+            expect(got).toEqual([obj, { a: 1 }]);
+        });
+
+        it("should remove duplicate items based on a custom async callback", async () => {
+            const got = await new ArrayStream([
+                { id: 1, value: "a" },
+                { id: 2, value: "b" },
+                { id: 1, value: "c" },
+                { id: 3, value: "d" },
+            ])
+                .asyncDedupe(async (item) => item.id)
+                .collect();
+            expect(got).toEqual([
+                { id: 1, value: "a" },
+                { id: 2, value: "b" },
+                { id: 3, value: "d" },
+            ]);
+        });
+
+        it("should work with other operations", async () => {
+            const got = await new ArrayStream([1, 2, 2, 3, 4, 4, 5])
+                .filter((x) => x % 2 === 0)
+                .asyncDedupe()
+                .collect();
+            expect(got).toEqual([2, 4]);
+        });
+
+        // it("should work with infinite generators", async () => {
+        //     function* generate() {
+        //         let i = 0;
+        //         while (true) {
+        //             yield i % 3;
+        //             i++;
+        //         }
+        //     }
+
+        //     const got = await new ArrayStream(generate())
+        //         .asyncDedupe()
+        //         .take(3)
+        //         .collect();
+        //     expect(got).toEqual([0, 1, 2]);
+        // });
+
+        it("should return the correct type based on the error handler", async () => {
+            const stream1 = new ArrayStream([1, 2, 2, 3]).asyncDedupe();
+            assertType<AsyncArrayStream<number, Breaker<number>>>(stream1);
+
+            const stream2 = new ArrayStream(
+                [1, 2, 2, 3],
+                new Ignorer()
+            ).asyncDedupe();
+            assertType<AsyncArrayStream<number, Ignorer>>(stream2);
+
+            const stream3 = new ArrayStream(
+                [1, 2, 2, 3],
+                new Settler()
+            ).asyncDedupe();
+            assertType<AsyncArrayStream<number, Settler<number>>>(stream3);
         });
     });
 });

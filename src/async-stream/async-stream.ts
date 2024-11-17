@@ -80,6 +80,14 @@ export class AsyncArrayStream<
             return gen();
         } else if (Symbol.asyncIterator in input) {
             return input[Symbol.asyncIterator]();
+        } else if (Symbol.iterator in input) {
+            const inputClone = [...input];
+            async function* gen() {
+                for (const item of inputClone) {
+                    yield item;
+                }
+            }
+            return gen();
         } else if (Array.isArray(input)) {
             const inputClone = [...input];
             async function* gen() {
@@ -513,6 +521,36 @@ export class AsyncArrayStream<
 
         // @ts-expect-error: The handler is narrowed to the new type
         return new AsyncArrayStream(fuseGenerator(), this.handler);
+    }
+
+    /**
+     * Removes duplicate items from the stream based on a provided callback function.
+     * If no callback is provided, a shallow comparison is used, e.g..
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5, 1, 2, 3, 4, 5])
+     *   .dedupe()
+     *   .collect();
+     * console.log(stream); // [1, 2, 3, 4, 5]
+     * ```
+     */
+    public dedupe<T>(
+        // @ts-expect-error: The default CB means that the type of T is Input
+        cb: (item: Input) => Promise<T> | T = (item) => item
+    ): AsyncArrayStream<Input, Handler> {
+        const iter = this.read();
+        async function* dedupeGenerator() {
+            const seen = new Set<T>();
+            for await (const item of iter) {
+                const key = await cb(item);
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    yield item;
+                }
+            }
+        }
+
+        // @ts-expect-error: The handler is narrowed to the new type
+        return new AsyncArrayStream(dedupeGenerator(), this.handler);
     }
 
     // Methods that collect the iterator
