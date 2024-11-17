@@ -1093,7 +1093,20 @@ export class ArrayStream<
         return { value: item, outcome: "success" };
     }
 
+    /**
+     * View the next item in the iterator without consuming it.
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5]);
+     * console.log(stream.peek()); // 1
+     * console.log(stream.peek()); // 1
+     * const items = stream.collect();
+     * console.log(items); // [1, 2, 3, 4, 5]
+     * console.log(stream.peek()); // null
+     */
     public peek(): Input | null {
+        if (this.visitedItems.length > 0) {
+            return this.visitedItems[this.visitedItems.length - 1] ?? null;
+        }
         const item = this.read().next();
         if (item.done) {
             return null;

@@ -1,4 +1,4 @@
-import { expect, describe, test, assertType, it } from "vitest";
+import { expect, describe, assertType, it } from "vitest";
 
 import { ArrayStream } from "./stream";
 import { Breaker, Ignorer, Settler } from "../errors/handlers";
@@ -1012,7 +1012,7 @@ describe("ArrayStream", () => {
             });
         });
 
-        test("should return the same values as every", () => {
+        it("should return the same values as every", () => {
             function* gen() {
                 yield 1;
                 yield 2;
