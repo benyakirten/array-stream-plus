@@ -4,12 +4,6 @@ import { ArrayStream } from "./stream";
 import { Breaker, Ignorer, Settler } from "../errors/handlers";
 import type { AsyncArrayStream } from "../async-stream/async-stream";
 
-const PerformanceMock = {
-    now: vi.fn(),
-};
-
-vi.stubGlobal("performance", PerformanceMock);
-
 describe("ArrayStream", () => {
     // Test functions using both the iterator helpers and the default iteration methods
     function makeArrayArrayStreams<T>(
