@@ -1926,5 +1926,20 @@ describe("ArrayStream", () => {
             expect(iter.next().value).toEqual([9, 10]);
             expect(iter.next().done).toBe(true);
         });
+
+        it("should correctly modify the type of the error handler", () => {
+            const stream1 = new ArrayStream([1, 2, 3]).batch({ size: 2 });
+            assertType<ArrayStream<number[], Breaker<number[]>>>(stream1);
+
+            const stream2 = new ArrayStream([1, 2, 3], new Ignorer()).batch({
+                size: 2,
+            });
+            assertType<ArrayStream<number[], Ignorer>>(stream2);
+
+            const stream3 = new ArrayStream([1, 2, 3], new Settler()).batch({
+                size: 2,
+            });
+            assertType<ArrayStream<number[], Settler<number[]>>>(stream3);
+        });
     });
 });
