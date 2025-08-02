@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, assertType } from "vitest";
+import { describe, it, expect, vi, assertType, afterEach } from "vitest";
 
 import { AsyncArrayStream } from "./async-stream";
 import {
@@ -1850,6 +1850,220 @@ describe("AsyncArrayStream", () => {
                     "Error occurred at item at index 0 in iterator: Error",
                 ],
             });
+        });
+    });
+
+    describe("batch", () => {
+        afterEach(() => {
+            vi.clearAllMocks();
+        });
+
+        describe("size", () => {
+            it("should batch items into arrays of the specified size", async () => {
+                const got = await new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ])
+                    .batch({ size: 3 })
+                    .collect();
+                expect(got).toEqual([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]);
+            });
+
+            it("should correctly batch an empty stream", async () => {
+                const got = await new AsyncArrayStream([])
+                    .batch({ size: 3 })
+                    .collect();
+                expect(got).toEqual([]);
+            });
+        });
+
+        describe("timeout", () => {
+            it("should batch items into arrays based on a timeout", async () => {
+                const stream = new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ]).batch({ timeout: 100 });
+
+                const mock = performance.now as ReturnType<typeof vi.fn>;
+                mock.mockReturnValueOnce(0);
+                mock.mockReturnValueOnce(50);
+                mock.mockReturnValueOnce(150);
+
+                const iter = stream.read();
+
+                const firstBatch = await iter.next();
+                expect(firstBatch.value).toEqual([1, 2]);
+                expect(firstBatch.done).toBe(false);
+
+                const secondBatch = await iter.next();
+                expect(secondBatch.value).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
+                expect(secondBatch.done).toBe(false);
+
+                const thirdBatch = await iter.next();
+                expect(thirdBatch.value).toEqual(undefined);
+                expect(thirdBatch.done).toBe(true);
+            });
+
+            it("should reset the timeout expected time after it yields a group of items", async () => {
+                const stream = new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ]).batch({ timeout: 100 });
+
+                const mock = performance.now as ReturnType<typeof vi.fn>;
+                mock.mockReturnValueOnce(0);
+                mock.mockReturnValueOnce(50);
+                mock.mockReturnValueOnce(150);
+                mock.mockReturnValueOnce(0);
+                mock.mockReturnValueOnce(50);
+                mock.mockReturnValueOnce(150);
+
+                const iter = stream.read();
+
+                const firstBatch = await iter.next();
+                expect(firstBatch.value).toEqual([1, 2]);
+                expect(firstBatch.done).toBe(false);
+
+                const secondBatch = await iter.next();
+                expect(secondBatch.value).toEqual([3, 4]);
+                expect(secondBatch.done).toBe(false);
+
+                const thirdBatch = await iter.next();
+                expect(thirdBatch.value).toEqual([5, 6, 7, 8, 9, 10]);
+                expect(thirdBatch.done).toBe(false);
+
+                const fourthBatch = await iter.next();
+                expect(fourthBatch.done).toBe(true);
+            });
+
+            it("should correctly batch an empty stream", async () => {
+                const got = await new AsyncArrayStream([])
+                    .batch({ timeout: 100 })
+                    .collect();
+                expect(got).toEqual([]);
+            });
+        });
+
+        describe("callback", () => {
+            it("should batch items into arrays based on a callback", async () => {
+                const got = await new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ])
+                    .batch({
+                        callback: (item) => item % 3 === 0,
+                    })
+                    .collect();
+                expect(got).toEqual([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]);
+            });
+
+            it("should correctly batch an empty stream", async () => {
+                const got = await new AsyncArrayStream([])
+                    .batch({ callback: () => true })
+                    .collect();
+                expect(got).toEqual([]);
+            });
+
+            it("should not invoke the callback if the stream yields for batch size first", async () => {
+                const mock = vi.fn();
+                const stream = new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ]).batch({
+                    size: 1,
+                    callback: mock,
+                });
+
+                await stream.collect();
+                expect(mock).not.toHaveBeenCalled();
+            });
+
+            it("should work correctly with an asynchronous callback", async () => {
+                const got = await new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ])
+                    .batch({
+                        callback: async (item) => item === 3,
+                    })
+                    .collect();
+
+                expect(got).toEqual([
+                    [1, 2, 3],
+                    [4, 5, 6, 7, 8, 9, 10],
+                ]);
+            });
+        });
+
+        it("should work with a combination of options", async () => {
+            const got = new AsyncArrayStream([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            ]).batch({
+                size: 3,
+                timeout: 100,
+                callback: (item) => item === 5,
+            });
+
+            const mock = performance.now as ReturnType<typeof vi.fn>;
+            mock.mockReturnValueOnce(0);
+            mock.mockReturnValue(150);
+
+            const iter = got.read();
+
+            const firstBatch = await iter.next();
+            expect(firstBatch.value).toEqual([1]);
+            expect(firstBatch.done).toBe(false);
+
+            const secondBatch = await iter.next();
+            expect(secondBatch.value).toEqual([2, 3, 4]);
+            expect(secondBatch.done).toBe(false);
+
+            const thirdBatch = await iter.next();
+            expect(thirdBatch.value).toEqual([5]);
+            expect(thirdBatch.done).toBe(false);
+
+            const fourthBatch = await iter.next();
+            expect(fourthBatch.value).toEqual([6, 7, 8]);
+            expect(fourthBatch.done).toBe(false);
+
+            const fifthBatch = await iter.next();
+            expect(fifthBatch.value).toEqual([9, 10]);
+            expect(fifthBatch.done).toBe(false);
+
+            const sixthBatch = await iter.next();
+            expect(sixthBatch.done).toBe(true);
+        });
+
+        it("should work correctly with an asynchronous generator", async () => {
+            async function* asyncGen() {
+                yield 1;
+                yield 2;
+                yield 3;
+                yield 4;
+                yield 5;
+            }
+
+            const stream = new AsyncArrayStream(asyncGen()).batch({
+                size: 2,
+            });
+
+            const result = await stream.collect();
+            expect(result).toEqual([[1, 2], [3, 4], [5]]);
+        });
+
+        it("should correctly modify the type of the error handler", () => {
+            const stream1 = new AsyncArrayStream([1, 2, 3]).batch({ size: 2 });
+            assertType<AsyncArrayStream<number[], Breaker<number[]>>>(stream1);
+
+            const stream2 = new AsyncArrayStream(
+                [1, 2, 3],
+                new Ignorer()
+            ).batch({
+                size: 2,
+            });
+            assertType<AsyncArrayStream<number[], Ignorer>>(stream2);
+
+            const stream3 = new AsyncArrayStream(
+                [1, 2, 3],
+                new Settler()
+            ).batch({
+                size: 2,
+            });
+            assertType<AsyncArrayStream<number[], Settler<number[]>>>(stream3);
         });
     });
 });
