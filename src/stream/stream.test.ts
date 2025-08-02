@@ -1,8 +1,14 @@
-import { expect, describe, assertType, it } from "vitest";
+import { expect, describe, assertType, it, afterEach, vi } from "vitest";
 
 import { ArrayStream } from "./stream";
 import { Breaker, Ignorer, Settler } from "../errors/handlers";
 import type { AsyncArrayStream } from "../async-stream/async-stream";
+
+const PerformanceMock = {
+    now: vi.fn(),
+};
+
+vi.stubGlobal("performance", PerformanceMock);
 
 describe("ArrayStream", () => {
     // Test functions using both the iterator helpers and the default iteration methods
@@ -1808,6 +1814,123 @@ describe("ArrayStream", () => {
                 new Settler()
             ).asyncDedupe();
             assertType<AsyncArrayStream<number, Settler<number>>>(stream3);
+        });
+    });
+
+    describe("batch", () => {
+        afterEach(() => {
+            vi.clearAllMocks();
+        });
+
+        describe("size", () => {
+            it("should batch items into arrays of the specified size", () => {
+                const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+                    .batch({ size: 3 })
+                    .collect();
+                expect(got).toEqual([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]);
+            });
+
+            it("should correctly batch an empty stream", () => {
+                const got = new ArrayStream([]).batch({ size: 3 }).collect();
+                expect(got).toEqual([]);
+            });
+        });
+
+        describe("timeout", () => {
+            it("should batch items into arrays based on a timeout", () => {
+                const stream = new ArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ]).batch({ timeout: 100 });
+
+                const mock = performance.now as ReturnType<typeof vi.fn>;
+                mock.mockReturnValueOnce(0);
+                mock.mockReturnValueOnce(50);
+                mock.mockReturnValueOnce(150);
+
+                const iter = stream.read();
+
+                expect(iter.next().value).toEqual([1, 2]);
+                expect(iter.next().value).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
+                expect(iter.next().done).toBe(true);
+            });
+
+            it("should reset the timeout expected time after it yields a group of items", () => {
+                const stream = new ArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ]).batch({ timeout: 100 });
+
+                const mock = performance.now as ReturnType<typeof vi.fn>;
+                mock.mockReturnValueOnce(0);
+                mock.mockReturnValueOnce(50);
+                mock.mockReturnValueOnce(150);
+                mock.mockReturnValueOnce(0);
+                mock.mockReturnValueOnce(50);
+                mock.mockReturnValueOnce(150);
+
+                const iter = stream.read();
+                expect(iter.next().value).toEqual([1, 2]);
+                expect(iter.next().value).toEqual([3, 4]);
+                expect(iter.next().value).toEqual([5, 6, 7, 8, 9, 10]);
+                expect(iter.next().done).toBe(true);
+            });
+
+            it("should correctly batch an empty stream", () => {
+                const got = new ArrayStream([])
+                    .batch({ timeout: 100 })
+                    .collect();
+                expect(got).toEqual([]);
+            });
+        });
+
+        describe("callback", () => {
+            it("should batch items into arrays based on a callback", () => {
+                const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+                    .batch({
+                        callback: (item) => item % 3 === 0,
+                    })
+                    .collect();
+                expect(got).toEqual([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]);
+            });
+
+            it("should correctly batch an empty stream", () => {
+                const got = new ArrayStream([])
+                    .batch({ callback: () => true })
+                    .collect();
+                expect(got).toEqual([]);
+            });
+
+            it("should not invoke the callback if the stream yields for batch size first", () => {
+                const mock = vi.fn();
+                const stream = new ArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ]).batch({
+                    size: 1,
+                    callback: mock,
+                });
+
+                stream.collect();
+                expect(mock).not.toHaveBeenCalled();
+            });
+        });
+
+        it("should work with a combination of options", () => {
+            const got = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).batch({
+                size: 3,
+                timeout: 100,
+                callback: (item) => item === 5,
+            });
+
+            const mock = performance.now as ReturnType<typeof vi.fn>;
+            mock.mockReturnValueOnce(0);
+            mock.mockReturnValue(150);
+
+            const iter = got.read();
+            expect(iter.next().value).toEqual([1]);
+            expect(iter.next().value).toEqual([2, 3, 4]);
+            expect(iter.next().value).toEqual([5]);
+            expect(iter.next().value).toEqual([6, 7, 8]);
+            expect(iter.next().value).toEqual([9, 10]);
+            expect(iter.next().done).toBe(true);
         });
     });
 });

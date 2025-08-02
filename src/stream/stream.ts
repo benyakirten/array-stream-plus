@@ -9,6 +9,7 @@ import type {
     ErrorHandler,
     RequiredHandler,
     SynchronousStreamOptions,
+    BatchOptions,
 } from "../types";
 
 /**
@@ -304,6 +305,76 @@ export class ArrayStream<
         }
 
         return new ArrayStream(takeGenerator(), this.handler);
+    }
+
+    /**
+     * Take a number of items from the iterator and batch them into an array. One or more of the following
+     * options may be provided to indicate when to yield the batch:
+     * 1. size: the number of items to include in the batch.
+     * 2. timeout: the maximum amount of milliseconds to wait before yielding the batch.
+     * 3. callback: a function that takes the yielded item from the iterator and returns a boolean indicating
+     *    whether to yield the batch. `true` means yield the batch, `false` means continue collecting items.
+     *
+     * The order of checking is in the same order as above so, for example, if we've reached the maximum batch
+     * size, the callback will not be called.
+     *
+     * Example usage:
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+     *   .batch({ size: 3 });
+     *   .collect();
+     * console.log(stream); // [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]
+     * ```
+     */
+    public batch(
+        options: BatchOptions<Input>
+    ): ArrayStream<Input[], NarrowHandlerType<Handler, Input, Input[]>> {
+        const size = "size" in options ? options.size : null;
+        const timeout = "timeout" in options ? options.timeout : null;
+        const callback = "callback" in options ? options.callback : null;
+
+        const iter = this.read();
+        function* batchGenerator() {
+            let batch: Input[] = [];
+            let shouldYield = false;
+            let startTime = performance.now();
+            let index = 0;
+
+            while (true) {
+                const { done, value } = iter.next();
+                if (value !== undefined) {
+                    batch.push(value);
+                }
+
+                if (done) {
+                    if (batch.length > 0) {
+                        yield batch;
+                    }
+                    return;
+                }
+
+                if (
+                    (timeout && performance.now() - startTime > timeout) ||
+                    (size !== null && batch.length >= size) ||
+                    (callback && callback(value, index++))
+                ) {
+                    shouldYield = true;
+                }
+
+                if (shouldYield) {
+                    yield batch;
+
+                    if (timeout) {
+                        startTime = performance.now();
+                    }
+                    batch = [];
+                    shouldYield = false;
+                }
+            }
+        }
+
+        // @ts-expect-error: TypeScript gonna typescript
+        return new ArrayStream(batchGenerator(), this.handler);
     }
 
     /**
