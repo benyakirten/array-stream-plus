@@ -8,7 +8,7 @@ import type {
     NarrowHandlerType,
     HandlerReturnType,
     RequiredHandler,
-    AsyncBatchOptions,
+    BatchOptionsAsync,
 } from "../types";
 
 /**
@@ -16,6 +16,8 @@ import type {
  * Operations (map, filter, etc.) are not executed until the iterator is consumed. It can be used with
  * any async or syncronous iterable. It can also work with a function that returns a promise that resolves
  * to an item or null (to signal that the iterator is exhausted).
+ *
+ * An `AbortSignal` can be passed to the constructor to allow for cancellation of the iteration.
  *
  * An example of how this might be used with a fetch request with the promise generator.
  * ```ts
@@ -305,7 +307,7 @@ export class AsyncArrayStream<
      * ```
      */
     public batch(
-        options: AsyncBatchOptions<Input>
+        options: BatchOptionsAsync<Input>
     ): AsyncArrayStream<Input[], NarrowHandlerType<Handler, Input, Input[]>> {
         const size = "size" in options ? options.size : null;
         const timeout = "timeout" in options ? options.timeout : null;

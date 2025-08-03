@@ -219,7 +219,7 @@ type AsyncThreeBatchOptions<T> = SizeBatchOption &
  * The one difference between this and synchronous `BatchOptions` is that
  * the callback can return a promise, which will be awaited before continuing to batch.
  */
-export type AsyncBatchOptions<T> =
+export type BatchOptionsAsync<T> =
     | AsyncOneBatchOption<T>
     | AsyncTwoBatchOptions<T>
     | AsyncThreeBatchOptions<T>;
