@@ -1,4 +1,13 @@
-import { describe, it, expect, vi, assertType } from "vitest";
+import {
+    describe,
+    it,
+    expect,
+    vi,
+    assertType,
+    afterEach,
+    afterAll,
+    beforeAll,
+} from "vitest";
 
 import { AsyncArrayStream } from "./async-stream";
 import {
@@ -9,6 +18,18 @@ import {
 } from "../errors/handlers";
 
 describe("AsyncArrayStream", () => {
+    beforeAll(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.runAllTimers();
+    });
+
+    afterAll(() => {
+        vi.useRealTimers();
+    });
+
     describe("ops", () => {
         describe("map", () => {
             it("should map values from one shape to another", async () => {
@@ -895,6 +916,37 @@ describe("AsyncArrayStream", () => {
                 assertType<SettlerOutput<number>>(settlerStream);
                 expect(settlerStream).toEqual({ data: 3, errors: [] });
             });
+
+            it("should return 0 for an empty stream", async () => {
+                const input: number[] = [];
+                const stream = new AsyncArrayStream(input);
+                const result = await stream.count();
+                expect(result).toBe(0);
+            });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).count();
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(2);
+            });
         });
 
         describe("nth", () => {
@@ -932,6 +984,37 @@ describe("AsyncArrayStream", () => {
                 ).nth(2);
                 assertType<SettlerOutput<number | null>>(settlerStream);
                 expect(settlerStream).toEqual({ data: 3, errors: [] });
+            });
+
+            it("should return null for an empty stream", async () => {
+                const input: number[] = [];
+                const stream = new AsyncArrayStream(input);
+                const result = await stream.nth(0);
+                expect(result).toBe(null);
+            });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).nth(1);
+
+                await vi.advanceTimersByTimeAsync(45);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(1);
             });
         });
 
@@ -976,6 +1059,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).reduce(async (acc, x) => acc + x, 0);
+
+                await vi.advanceTimersByTimeAsync(45);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(6); // 0 + 1 + 2 + 3
+            });
         });
 
         describe("reduceRight", () => {
@@ -1019,6 +1126,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).reduceRight(async (acc, x) => acc + x, "");
+
+                await vi.advanceTimersByTimeAsync(45);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe("3210"); // 0 + 1 + 2 + 3
+            });
         });
 
         describe("flat", () => {
@@ -1058,6 +1189,30 @@ describe("AsyncArrayStream", () => {
                     data: [1, 2, [3, 4, 5, 6, 7, 8, 9]],
                     errors: [],
                 });
+            });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    yield [1, 2];
+                    await new Promise((resolve) => setTimeout(resolve, 10));
+                    yield [3, [4, 5]];
+                    await new Promise((resolve) => setTimeout(resolve, 10));
+                    yield [6, [7, [8, 9]]];
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).flat(2);
+
+                await vi.advanceTimersByTimeAsync(15);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toEqual([1, 2, 3, 4, 5]);
             });
         });
 
@@ -1126,6 +1281,31 @@ describe("AsyncArrayStream", () => {
 
                 expect(streamSome).toEqual(streamAny);
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).any(async (x) => x === 4);
+
+                await vi.advanceTimersByTimeAsync(25);
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(true);
+            });
         });
 
         describe("all", () => {
@@ -1193,6 +1373,30 @@ describe("AsyncArrayStream", () => {
 
                 expect(streamEvery).toEqual(streamAll);
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).all(async (x) => x < 4);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(true);
+            });
         });
 
         describe("find", () => {
@@ -1248,6 +1452,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).find(async (x) => x === 5);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(null);
+            });
         });
 
         describe("findIndex", () => {
@@ -1277,6 +1505,30 @@ describe("AsyncArrayStream", () => {
 
                 expect(spy).toHaveBeenCalledWith(1);
                 expect(spy).toHaveBeenCalledWith(2);
+            });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).findIndex(async (x) => x === 5);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(-1);
             });
         });
 
@@ -1342,6 +1594,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).findLast(async (x) => x === 5);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(null);
+            });
         });
 
         describe("findLastIndex", () => {
@@ -1398,6 +1674,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).findLastIndex(async (x) => x === 5);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(-1);
+            });
         });
 
         describe("includes", () => {
@@ -1438,6 +1738,30 @@ describe("AsyncArrayStream", () => {
                     data: true,
                     errors: [],
                 });
+            });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).includes(5);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(false);
             });
         });
 
@@ -1492,6 +1816,33 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).partition(async (x) => x % 2 === 0);
+
+                await vi.advanceTimersByTimeAsync(45);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toEqual([
+                    [0, 2],
+                    [1, 3],
+                ]);
+            });
         });
 
         describe("collect", () => {
@@ -1529,6 +1880,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).collect();
+
+                await vi.advanceTimersByTimeAsync(45);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toEqual([0, 1, 2, 3]);
+            });
         });
     });
 
@@ -1547,6 +1922,69 @@ describe("AsyncArrayStream", () => {
             expect(result).toEqual({ done: false, value: 3 });
 
             result = await stream.read().next();
+            expect(result).toEqual({ done: true, value: undefined });
+        });
+
+        it("should stop yielding items when the abort signal is triggered", async () => {
+            const controller = new AbortController();
+            async function* gen() {
+                let i = 0;
+                while (true) {
+                    yield i++;
+                }
+            }
+
+            const stream = new AsyncArrayStream(
+                gen(),
+                new Breaker(),
+                controller.signal
+            );
+            const iter = stream.read();
+
+            let result = await iter.next();
+            expect(result).toEqual({ done: false, value: 0 });
+
+            result = await iter.next();
+            expect(result).toEqual({ done: false, value: 1 });
+
+            controller.abort();
+
+            result = await iter.next();
+            expect(result).toEqual({ done: true, value: undefined });
+        });
+
+        it("should stop yielding items if the abort signal is triggered during an operation", async () => {
+            const controller = new AbortController();
+            async function* gen() {
+                let i = 0;
+                while (true) {
+                    yield i++;
+                }
+            }
+
+            const stream = new AsyncArrayStream(
+                gen(),
+                new Breaker(),
+                controller.signal
+            ).map(async (x) => {
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                return x + 2;
+            });
+
+            const iter = stream.read();
+
+            let promise = iter.next();
+            await vi.advanceTimersByTimeAsync(15);
+            let result = await promise;
+            expect(result).toEqual({ done: false, value: 2 });
+
+            promise = iter.next();
+            await vi.advanceTimersByTimeAsync(15);
+            controller.abort();
+            result = await promise;
+            expect(result).toEqual({ done: false, value: 3 });
+
+            result = await iter.next();
             expect(result).toEqual({ done: true, value: undefined });
         });
     });
@@ -1850,6 +2288,220 @@ describe("AsyncArrayStream", () => {
                     "Error occurred at item at index 0 in iterator: Error",
                 ],
             });
+        });
+    });
+
+    describe("batch", () => {
+        afterEach(() => {
+            vi.clearAllMocks();
+        });
+
+        describe("size", () => {
+            it("should batch items into arrays of the specified size", async () => {
+                const got = await new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ])
+                    .batch({ size: 3 })
+                    .collect();
+                expect(got).toEqual([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]);
+            });
+
+            it("should correctly batch an empty stream", async () => {
+                const got = await new AsyncArrayStream([])
+                    .batch({ size: 3 })
+                    .collect();
+                expect(got).toEqual([]);
+            });
+        });
+
+        describe("timeout", () => {
+            it("should batch items into arrays based on a timeout", async () => {
+                const stream = new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ]).batch({ timeout: 100 });
+
+                const mock = performance.now as ReturnType<typeof vi.fn>;
+                mock.mockReturnValueOnce(0);
+                mock.mockReturnValueOnce(50);
+                mock.mockReturnValueOnce(150);
+
+                const iter = stream.read();
+
+                const firstBatch = await iter.next();
+                expect(firstBatch.value).toEqual([1, 2]);
+                expect(firstBatch.done).toBe(false);
+
+                const secondBatch = await iter.next();
+                expect(secondBatch.value).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
+                expect(secondBatch.done).toBe(false);
+
+                const thirdBatch = await iter.next();
+                expect(thirdBatch.value).toEqual(undefined);
+                expect(thirdBatch.done).toBe(true);
+            });
+
+            it("should reset the timeout expected time after it yields a group of items", async () => {
+                const stream = new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ]).batch({ timeout: 100 });
+
+                const mock = performance.now as ReturnType<typeof vi.fn>;
+                mock.mockReturnValueOnce(0);
+                mock.mockReturnValueOnce(50);
+                mock.mockReturnValueOnce(150);
+                mock.mockReturnValueOnce(0);
+                mock.mockReturnValueOnce(50);
+                mock.mockReturnValueOnce(150);
+
+                const iter = stream.read();
+
+                const firstBatch = await iter.next();
+                expect(firstBatch.value).toEqual([1, 2]);
+                expect(firstBatch.done).toBe(false);
+
+                const secondBatch = await iter.next();
+                expect(secondBatch.value).toEqual([3, 4]);
+                expect(secondBatch.done).toBe(false);
+
+                const thirdBatch = await iter.next();
+                expect(thirdBatch.value).toEqual([5, 6, 7, 8, 9, 10]);
+                expect(thirdBatch.done).toBe(false);
+
+                const fourthBatch = await iter.next();
+                expect(fourthBatch.done).toBe(true);
+            });
+
+            it("should correctly batch an empty stream", async () => {
+                const got = await new AsyncArrayStream([])
+                    .batch({ timeout: 100 })
+                    .collect();
+                expect(got).toEqual([]);
+            });
+        });
+
+        describe("callback", () => {
+            it("should batch items into arrays based on a callback", async () => {
+                const got = await new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ])
+                    .batch({
+                        callback: (item) => item % 3 === 0,
+                    })
+                    .collect();
+                expect(got).toEqual([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]);
+            });
+
+            it("should correctly batch an empty stream", async () => {
+                const got = await new AsyncArrayStream([])
+                    .batch({ callback: () => true })
+                    .collect();
+                expect(got).toEqual([]);
+            });
+
+            it("should not invoke the callback if the stream yields for batch size first", async () => {
+                const mock = vi.fn();
+                const stream = new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ]).batch({
+                    size: 1,
+                    callback: mock,
+                });
+
+                await stream.collect();
+                expect(mock).not.toHaveBeenCalled();
+            });
+
+            it("should work correctly with an asynchronous callback", async () => {
+                const got = await new AsyncArrayStream([
+                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+                ])
+                    .batch({
+                        callback: async (item) => item === 3,
+                    })
+                    .collect();
+
+                expect(got).toEqual([
+                    [1, 2, 3],
+                    [4, 5, 6, 7, 8, 9, 10],
+                ]);
+            });
+        });
+
+        it("should work with a combination of options", async () => {
+            const got = new AsyncArrayStream([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+            ]).batch({
+                size: 3,
+                timeout: 100,
+                callback: (item) => item === 5,
+            });
+
+            const mock = performance.now as ReturnType<typeof vi.fn>;
+            mock.mockReturnValueOnce(0);
+            mock.mockReturnValue(150);
+
+            const iter = got.read();
+
+            const firstBatch = await iter.next();
+            expect(firstBatch.value).toEqual([1]);
+            expect(firstBatch.done).toBe(false);
+
+            const secondBatch = await iter.next();
+            expect(secondBatch.value).toEqual([2, 3, 4]);
+            expect(secondBatch.done).toBe(false);
+
+            const thirdBatch = await iter.next();
+            expect(thirdBatch.value).toEqual([5]);
+            expect(thirdBatch.done).toBe(false);
+
+            const fourthBatch = await iter.next();
+            expect(fourthBatch.value).toEqual([6, 7, 8]);
+            expect(fourthBatch.done).toBe(false);
+
+            const fifthBatch = await iter.next();
+            expect(fifthBatch.value).toEqual([9, 10]);
+            expect(fifthBatch.done).toBe(false);
+
+            const sixthBatch = await iter.next();
+            expect(sixthBatch.done).toBe(true);
+        });
+
+        it("should work correctly with an asynchronous generator", async () => {
+            async function* asyncGen() {
+                yield 1;
+                yield 2;
+                yield 3;
+                yield 4;
+                yield 5;
+            }
+
+            const stream = new AsyncArrayStream(asyncGen()).batch({
+                size: 2,
+            });
+
+            const result = await stream.collect();
+            expect(result).toEqual([[1, 2], [3, 4], [5]]);
+        });
+
+        it("should correctly modify the type of the error handler", () => {
+            const stream1 = new AsyncArrayStream([1, 2, 3]).batch({ size: 2 });
+            assertType<AsyncArrayStream<number[], Breaker<number[]>>>(stream1);
+
+            const stream2 = new AsyncArrayStream(
+                [1, 2, 3],
+                new Ignorer()
+            ).batch({
+                size: 2,
+            });
+            assertType<AsyncArrayStream<number[], Ignorer>>(stream2);
+
+            const stream3 = new AsyncArrayStream(
+                [1, 2, 3],
+                new Settler()
+            ).batch({
+                size: 2,
+            });
+            assertType<AsyncArrayStream<number[], Settler<number[]>>>(stream3);
         });
     });
 });

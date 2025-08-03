@@ -6,4 +6,6 @@ export type {
     Streamable,
     AsyncStreamable,
     SynchronousStreamOptions,
+    BatchOptions,
+    BatchOptionsAsync,
 } from "./types";

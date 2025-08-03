@@ -161,3 +161,65 @@ export type SynchronousStreamOptions = {
      */
     useIteratorHelpersIfAvailable: boolean;
 };
+
+type SizeBatchOption = {
+    size: number;
+};
+type TimeoutBatchOption = {
+    timeout: number;
+};
+type CallbackBatchOption<T> = {
+    callback: (batch: T, index: number) => boolean;
+};
+type OneBatchOption<T> =
+    | SizeBatchOption
+    | TimeoutBatchOption
+    | CallbackBatchOption<T>;
+type TwoBatchOptions<T> =
+    | (SizeBatchOption & TimeoutBatchOption)
+    | (SizeBatchOption & CallbackBatchOption<T>)
+    | (TimeoutBatchOption & CallbackBatchOption<T>);
+type ThreeBatchOptions<T> = SizeBatchOption &
+    TimeoutBatchOption &
+    CallbackBatchOption<T>;
+
+/**
+ * Represents the available batching options for an array stream of type `T`.
+ * A user can either specify a maximum size for a batch, a timeout for the batch or a callback to be called
+ * on every batch (e.g. returning true means continue batching false means yield now).
+ * At least one must be provided, but you can provide multiple options.
+ */
+export type BatchOptions<T> =
+    | OneBatchOption<T>
+    | TwoBatchOptions<T>
+    | ThreeBatchOptions<T>;
+
+type AsyncCallbackBatchOption<T> = {
+    callback: (batch: T, index: number) => boolean | Promise<boolean>;
+};
+
+type AsyncOneBatchOption<T> =
+    | SizeBatchOption
+    | TimeoutBatchOption
+    | AsyncCallbackBatchOption<T>;
+type AsyncTwoBatchOptions<T> =
+    | (SizeBatchOption & TimeoutBatchOption)
+    | (SizeBatchOption & AsyncCallbackBatchOption<T>)
+    | (TimeoutBatchOption & AsyncCallbackBatchOption<T>);
+type AsyncThreeBatchOptions<T> = SizeBatchOption &
+    TimeoutBatchOption &
+    AsyncCallbackBatchOption<T>;
+
+/**
+ * Represents the available batching options for an array stream of type `T`.
+ * A user can either specify a maximum size for a batch, a timeout for the batch or a callback to be called
+ * on every batch (e.g. returning true means continue batching false means yield now).
+ * At least one must be provided, but you can provide multiple options.
+ *
+ * The one difference between this and synchronous `BatchOptions` is that
+ * the callback can return a promise, which will be awaited before continuing to batch.
+ */
+export type BatchOptionsAsync<T> =
+    | AsyncOneBatchOption<T>
+    | AsyncTwoBatchOptions<T>
+    | AsyncThreeBatchOptions<T>;

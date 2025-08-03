@@ -7,5 +7,6 @@ export default defineConfig({
             enabled: true,
             include: ["src/**/*.test.ts"],
         },
+        setupFiles: ["vitest/performance.js"],
     },
 });

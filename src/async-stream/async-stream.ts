@@ -8,6 +8,7 @@ import type {
     NarrowHandlerType,
     HandlerReturnType,
     RequiredHandler,
+    BatchOptionsAsync,
 } from "../types";
 
 /**
@@ -15,6 +16,8 @@ import type {
  * Operations (map, filter, etc.) are not executed until the iterator is consumed. It can be used with
  * any async or syncronous iterable. It can also work with a function that returns a promise that resolves
  * to an item or null (to signal that the iterator is exhausted).
+ *
+ * An `AbortSignal` can be passed to the constructor to allow for cancellation of the iteration.
  *
  * An example of how this might be used with a fetch request with the promise generator.
  * ```ts
@@ -54,7 +57,8 @@ export class AsyncArrayStream<
      */
     constructor(
         input: AsyncStreamable<Input>,
-        private readonly handler: Handler = new Breaker<Input>() as Handler
+        private readonly handler: Handler = new Breaker<Input>() as Handler,
+        private readonly signal?: AbortSignal
     ) {
         this.input = AsyncArrayStream.makeIterator(input);
     }
@@ -269,7 +273,7 @@ export class AsyncArrayStream<
      */
     public take(n: number): AsyncArrayStream<Input, Handler> {
         const gen = this.read();
-        async function* newGenerator() {
+        async function* takeGen() {
             for (let i = 0; i < n; i++) {
                 const item = await gen.next();
                 if (item.done) {
@@ -280,7 +284,77 @@ export class AsyncArrayStream<
         }
 
         // @ts-expect-error: The handler is narrowed to the new type
-        return new AsyncArrayStream(newGenerator(), this.handler);
+        return new AsyncArrayStream(takeGen(), this.handler, this.signal);
+    }
+
+    /**
+     * Take a number of items from the iterator and batch them into an array. One or more of the following
+     * options may be provided to indicate when to yield the batch:
+     * 1. size: the number of items to include in the batch.
+     * 2. timeout: the maximum amount of milliseconds to wait before yielding the batch.
+     * 3. callback: a function that takes the yielded item from the iterator and returns a boolean indicating
+     *    whether to yield the batch. `true` means yield the batch, `false` means continue collecting items.
+     *
+     * The order of checking is in the same order as above so, for example, if we've reached the maximum batch
+     * size, the callback will not be called.
+     *
+     * Example usage:
+     * ```ts
+     * const stream = new ArrayStream([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+     *   .batch({ size: 3 });
+     *   .collect();
+     * console.log(stream); // [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]
+     * ```
+     */
+    public batch(
+        options: BatchOptionsAsync<Input>
+    ): AsyncArrayStream<Input[], NarrowHandlerType<Handler, Input, Input[]>> {
+        const size = "size" in options ? options.size : null;
+        const timeout = "timeout" in options ? options.timeout : null;
+        const callback = "callback" in options ? options.callback : null;
+
+        const iter = this.read();
+        async function* batchGen() {
+            let batch: Input[] = [];
+            let shouldYield = false;
+            let startTime = performance.now();
+            let index = 0;
+
+            while (true) {
+                const { done, value } = await iter.next();
+                if (value !== undefined) {
+                    batch.push(value);
+                }
+
+                if (done) {
+                    if (batch.length > 0) {
+                        yield batch;
+                    }
+                    return;
+                }
+
+                if (
+                    (timeout && performance.now() - startTime > timeout) ||
+                    (size !== null && batch.length >= size) ||
+                    (callback && (await callback(value, index++)))
+                ) {
+                    shouldYield = true;
+                }
+
+                if (shouldYield) {
+                    yield batch;
+
+                    if (timeout) {
+                        startTime = performance.now();
+                    }
+                    batch = [];
+                    shouldYield = false;
+                }
+            }
+        }
+
+        // @ts-expect-error: TypeScript gonna typescript
+        return new AsyncArrayStream(batchGen(), this.handler, this.signal);
     }
 
     /**
@@ -298,7 +372,7 @@ export class AsyncArrayStream<
      */
     public skip(n: number): AsyncArrayStream<Input, Handler> {
         const gen = this.read();
-        async function* newGenerator() {
+        async function* skipGen() {
             for (let i = 0; i < n; i++) {
                 const item = await gen.next();
                 if (item.done) {
@@ -310,7 +384,7 @@ export class AsyncArrayStream<
         }
 
         // @ts-expect-error: The handler is narrowed to the new type
-        return new AsyncArrayStream(newGenerator(), this.handler);
+        return new AsyncArrayStream(skipGen(), this.handler, this.signal);
     }
 
     /**
@@ -322,7 +396,7 @@ export class AsyncArrayStream<
      */
     public stepBy(n: number): AsyncArrayStream<Input, Handler> {
         const gen = this.read();
-        async function* stepByGenerator() {
+        async function* stepByGen() {
             let iter = 0;
             for await (const item of gen) {
                 if (iter % n === 0) {
@@ -333,7 +407,7 @@ export class AsyncArrayStream<
         }
 
         // @ts-expect-error: The handler is narrowed to the new type
-        return new AsyncArrayStream(stepByGenerator(), this.handler);
+        return new AsyncArrayStream(stepByGen(), this.handler, this.signal);
     }
 
     /**
@@ -352,13 +426,13 @@ export class AsyncArrayStream<
         const gen = this.read();
         const streamGen = AsyncArrayStream.makeIterator(stream);
 
-        async function* chainGenerator() {
+        async function* chainGen() {
             yield* gen;
             yield* streamGen;
         }
 
         // @ts-expect-error: The handler is narrowed to the new
-        return new AsyncArrayStream(chainGenerator(), this.handler);
+        return new AsyncArrayStream(chainGen(), this.handler, this.signal);
     }
 
     /**
@@ -384,7 +458,7 @@ export class AsyncArrayStream<
     > {
         const iter = this.input;
 
-        async function* intersperseGenerator() {
+        async function* gen() {
             let item: IteratorResult<Input> | null = null;
             while (true) {
                 const current = item || (await iter.next());
@@ -410,7 +484,7 @@ export class AsyncArrayStream<
         }
 
         // @ts-expect-error: The handler is narrowed to the new type
-        return new AsyncArrayStream(intersperseGenerator(), this.handler);
+        return new AsyncArrayStream(gen(), this.handler, this.signal);
     }
 
     /**
@@ -432,7 +506,7 @@ export class AsyncArrayStream<
         const iter = this.read();
         const streamIter = AsyncArrayStream.makeIterator(stream);
 
-        async function* zipGenerator() {
+        async function* gen() {
             for await (const item of iter) {
                 const streamItem = await streamIter.next();
                 if (streamItem.done) {
@@ -444,7 +518,7 @@ export class AsyncArrayStream<
         }
 
         // @ts-expect-error: The handler is narrowed to the new type
-        return new AsyncArrayStream(zipGenerator(), this.handler);
+        return new AsyncArrayStream(gen(), this.handler, this.signal);
     }
 
     /**
@@ -462,7 +536,7 @@ export class AsyncArrayStream<
         NarrowHandlerType<Handler, Input, [number, Input]>
     > {
         const iter = this.read();
-        async function* enumerateGenerator() {
+        async function* gen() {
             let count = 0;
             for await (const item of iter) {
                 yield [count, item] as [number, Input];
@@ -471,7 +545,7 @@ export class AsyncArrayStream<
         }
 
         // @ts-expect-error: The handler is narrowed to the new type
-        return new AsyncArrayStream(enumerateGenerator(), this.handler);
+        return new AsyncArrayStream(gen(), this.handler, this.signal);
     }
 
     /**
@@ -487,7 +561,7 @@ export class AsyncArrayStream<
         fn: MaybeAsyncFn<Input, End[]>
     ): AsyncArrayStream<End, NarrowHandlerType<Handler, Input, End>> {
         const iter = this.read();
-        async function* flatMapGenerator() {
+        async function* gen() {
             for await (const item of iter) {
                 const result = await fn(item);
                 for (const r of result) {
@@ -497,7 +571,7 @@ export class AsyncArrayStream<
         }
 
         // @ts-expect-error: The handler is narrowed to the new type
-        return new AsyncArrayStream(flatMapGenerator(), this.handler);
+        return new AsyncArrayStream(gen(), this.handler, this.signal);
     }
 
     /**
@@ -521,7 +595,7 @@ export class AsyncArrayStream<
         }
 
         // @ts-expect-error: The handler is narrowed to the new type
-        return new AsyncArrayStream(fuseGenerator(), this.handler);
+        return new AsyncArrayStream(fuseGenerator(), this.handler, this.signal);
     }
 
     /**
@@ -551,7 +625,11 @@ export class AsyncArrayStream<
         }
 
         // @ts-expect-error: The handler is narrowed to the new type
-        return new AsyncArrayStream(dedupeGenerator(), this.handler);
+        return new AsyncArrayStream(
+            dedupeGenerator(),
+            this.handler,
+            this.signal
+        );
     }
 
     // Methods that collect the iterator
@@ -985,7 +1063,7 @@ export class AsyncArrayStream<
         while (true) {
             try {
                 const nextItem = await iter.next();
-                if (nextItem.done) {
+                if (nextItem.done || this.signal?.aborted) {
                     break;
                 }
 
@@ -1005,6 +1083,9 @@ export class AsyncArrayStream<
                 }
 
                 yield item.value;
+                if (this.signal?.aborted) {
+                    break;
+                }
             } catch (e) {
                 this.handler.registerCycleError(e, index);
             }
