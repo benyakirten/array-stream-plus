@@ -1,4 +1,13 @@
-import { describe, it, expect, vi, assertType, afterEach } from "vitest";
+import {
+    describe,
+    it,
+    expect,
+    vi,
+    assertType,
+    afterEach,
+    afterAll,
+    beforeAll,
+} from "vitest";
 
 import { AsyncArrayStream } from "./async-stream";
 import {
@@ -9,6 +18,18 @@ import {
 } from "../errors/handlers";
 
 describe("AsyncArrayStream", () => {
+    beforeAll(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.runAllTimers();
+    });
+
+    afterAll(() => {
+        vi.useRealTimers();
+    });
+
     describe("ops", () => {
         describe("map", () => {
             it("should map values from one shape to another", async () => {
@@ -904,8 +925,6 @@ describe("AsyncArrayStream", () => {
             });
 
             it("should stop iterating when the abort signal is triggered", async () => {
-                vi.useFakeTimers();
-
                 const controller = new AbortController();
                 async function* gen() {
                     let i = 0;
@@ -920,9 +939,10 @@ describe("AsyncArrayStream", () => {
                     new Breaker(),
                     controller.signal
                 ).count();
-                await vi.advanceTimersByTimeAsync(20);
+
+                await vi.advanceTimersByTimeAsync(25);
                 controller.abort();
-                await vi.advanceTimersByTimeAsync(10);
+                await vi.runAllTimersAsync();
 
                 const got = await promise;
                 expect(got).toBe(2);
@@ -964,6 +984,37 @@ describe("AsyncArrayStream", () => {
                 ).nth(2);
                 assertType<SettlerOutput<number | null>>(settlerStream);
                 expect(settlerStream).toEqual({ data: 3, errors: [] });
+            });
+
+            it("should return null for an empty stream", async () => {
+                const input: number[] = [];
+                const stream = new AsyncArrayStream(input);
+                const result = await stream.nth(0);
+                expect(result).toBe(null);
+            });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).nth(1);
+
+                await vi.advanceTimersByTimeAsync(45);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(1);
             });
         });
 
@@ -1008,6 +1059,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).reduce(async (acc, x) => acc + x, 0);
+
+                await vi.advanceTimersByTimeAsync(45);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(6); // 0 + 1 + 2 + 3
+            });
         });
 
         describe("reduceRight", () => {
@@ -1051,6 +1126,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).reduceRight(async (acc, x) => acc + x, "");
+
+                await vi.advanceTimersByTimeAsync(45);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe("3210"); // 0 + 1 + 2 + 3
+            });
         });
 
         describe("flat", () => {
@@ -1090,6 +1189,30 @@ describe("AsyncArrayStream", () => {
                     data: [1, 2, [3, 4, 5, 6, 7, 8, 9]],
                     errors: [],
                 });
+            });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    yield [1, 2];
+                    await new Promise((resolve) => setTimeout(resolve, 10));
+                    yield [3, [4, 5]];
+                    await new Promise((resolve) => setTimeout(resolve, 10));
+                    yield [6, [7, [8, 9]]];
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).flat(2);
+
+                await vi.advanceTimersByTimeAsync(15);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toEqual([1, 2, 3, 4, 5]);
             });
         });
 
@@ -1158,6 +1281,31 @@ describe("AsyncArrayStream", () => {
 
                 expect(streamSome).toEqual(streamAny);
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).any(async (x) => x === 4);
+
+                await vi.advanceTimersByTimeAsync(25);
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(true);
+            });
         });
 
         describe("all", () => {
@@ -1225,6 +1373,30 @@ describe("AsyncArrayStream", () => {
 
                 expect(streamEvery).toEqual(streamAll);
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).all(async (x) => x < 4);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(true);
+            });
         });
 
         describe("find", () => {
@@ -1280,6 +1452,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).find(async (x) => x === 5);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(null);
+            });
         });
 
         describe("findIndex", () => {
@@ -1309,6 +1505,30 @@ describe("AsyncArrayStream", () => {
 
                 expect(spy).toHaveBeenCalledWith(1);
                 expect(spy).toHaveBeenCalledWith(2);
+            });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).findIndex(async (x) => x === 5);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(-1);
             });
         });
 
@@ -1374,6 +1594,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).findLast(async (x) => x === 5);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(null);
+            });
         });
 
         describe("findLastIndex", () => {
@@ -1430,6 +1674,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).findLastIndex(async (x) => x === 5);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(-1);
+            });
         });
 
         describe("includes", () => {
@@ -1470,6 +1738,30 @@ describe("AsyncArrayStream", () => {
                     data: true,
                     errors: [],
                 });
+            });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).includes(5);
+
+                await vi.advanceTimersByTimeAsync(25);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toBe(false);
             });
         });
 
@@ -1524,6 +1816,33 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).partition(async (x) => x % 2 === 0);
+
+                await vi.advanceTimersByTimeAsync(45);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toEqual([
+                    [0, 2],
+                    [1, 3],
+                ]);
+            });
         });
 
         describe("collect", () => {
@@ -1561,6 +1880,30 @@ describe("AsyncArrayStream", () => {
                     errors: [],
                 });
             });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).collect();
+
+                await vi.advanceTimersByTimeAsync(45);
+                controller.abort();
+                await vi.runAllTimersAsync();
+
+                const got = await promise;
+                expect(got).toEqual([0, 1, 2, 3]);
+            });
         });
     });
 
@@ -1579,6 +1922,69 @@ describe("AsyncArrayStream", () => {
             expect(result).toEqual({ done: false, value: 3 });
 
             result = await stream.read().next();
+            expect(result).toEqual({ done: true, value: undefined });
+        });
+
+        it("should stop yielding items when the abort signal is triggered", async () => {
+            const controller = new AbortController();
+            async function* gen() {
+                let i = 0;
+                while (true) {
+                    yield i++;
+                }
+            }
+
+            const stream = new AsyncArrayStream(
+                gen(),
+                new Breaker(),
+                controller.signal
+            );
+            const iter = stream.read();
+
+            let result = await iter.next();
+            expect(result).toEqual({ done: false, value: 0 });
+
+            result = await iter.next();
+            expect(result).toEqual({ done: false, value: 1 });
+
+            controller.abort();
+
+            result = await iter.next();
+            expect(result).toEqual({ done: true, value: undefined });
+        });
+
+        it("should stop yielding items if the abort signal is triggered during an operation", async () => {
+            const controller = new AbortController();
+            async function* gen() {
+                let i = 0;
+                while (true) {
+                    yield i++;
+                }
+            }
+
+            const stream = new AsyncArrayStream(
+                gen(),
+                new Breaker(),
+                controller.signal
+            ).map(async (x) => {
+                await new Promise((resolve) => setTimeout(resolve, 10));
+                return x + 2;
+            });
+
+            const iter = stream.read();
+
+            let promise = iter.next();
+            await vi.advanceTimersByTimeAsync(15);
+            let result = await promise;
+            expect(result).toEqual({ done: false, value: 2 });
+
+            promise = iter.next();
+            await vi.advanceTimersByTimeAsync(15);
+            controller.abort();
+            result = await promise;
+            expect(result).toEqual({ done: false, value: 3 });
+
+            result = await iter.next();
             expect(result).toEqual({ done: true, value: undefined });
         });
     });
