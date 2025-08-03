@@ -48,7 +48,7 @@
         "vitest": "^2.1.9"
     },
     "peerDependencies": {
-        "typescript": "^5.6.2"
+        "typescript": "^5.9.2"
     },
     "scripts": {
         "build": "rimraf dist && rimraf compiled.js.gz && rollup -c && rimraf compiled.js && rimraf *.js.map",
