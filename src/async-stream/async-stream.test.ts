@@ -895,6 +895,38 @@ describe("AsyncArrayStream", () => {
                 assertType<SettlerOutput<number>>(settlerStream);
                 expect(settlerStream).toEqual({ data: 3, errors: [] });
             });
+
+            it("should return 0 for an empty stream", async () => {
+                const input: number[] = [];
+                const stream = new AsyncArrayStream(input);
+                const result = await stream.count();
+                expect(result).toBe(0);
+            });
+
+            it("should stop iterating when the abort signal is triggered", async () => {
+                vi.useFakeTimers();
+
+                const controller = new AbortController();
+                async function* gen() {
+                    let i = 0;
+                    while (true) {
+                        await new Promise((resolve) => setTimeout(resolve, 10));
+                        yield i++;
+                    }
+                }
+
+                const promise = new AsyncArrayStream(
+                    gen(),
+                    new Breaker(),
+                    controller.signal
+                ).count();
+                await vi.advanceTimersByTimeAsync(20);
+                controller.abort();
+                await vi.advanceTimersByTimeAsync(10);
+
+                const got = await promise;
+                expect(got).toBe(2);
+            });
         });
 
         describe("nth", () => {
